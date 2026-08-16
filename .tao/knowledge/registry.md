@@ -4,7 +4,7 @@
 
 | 执行环境 | 传输命令（push 任务文件到远端） | 远端执行方 |
 | --- | --- | --- |
-| `远端综合 · zzx-NF5280` | `scp <file> gxt@192.168.200.202:~/<repo>/.tao/tasks/` | 远端智能体（Vivado 综合） |
+| `远端综合 · zzx-NF5280` | `scp <file> gxt@192.168.200.202:~/<repo>/` | 本机 ssh 直连执行（路径 A，无远端 opencode；拓扑见 `synth-server.md`） |
 
 - 传输命令**以本表为准**（可能是 scp / scp -P / rsync），不要假设一律 rsync
 - pull（远端拉回本地）由 push 命令反推：`scp [-P port] user@host:remote_path/<file> <local_file>`
