@@ -4,7 +4,7 @@
 **执行环境**：本地
 
 ## 接口规范
-- 输入：系统已装 bazel 3.5.1（过旧，无法构建 coralnpu）；coralnpu `.bazelversion` 声明 8.6.0；网络可用（已确认 github 可达）
+- 输入：系统已装 bazel 3.5.1（过旧，无法构建 coralnpu）；coralnpu `.bazelversion` 声明 8.6.0；网络可用（已确认 github 可达）；前置检查项：python3 版本（记录实际版本）、系统 `srec_cat` 是否存在（coralnpu 通过 bazel 拉取 `@srecord` 源码自行构建，系统 srec_cat 非硬依赖；检查结果仅为记录，缺失不阻塞，但须确认 `@srecord` 路径可用）
 - 输出：可用的 bazelisk（自动按 `.bazelversion` 下载并切换 bazel 8.6.0），用户目录 `~/bin` 下；全局 `bazel` 命令指向 bazelisk
 - 约束：不通过 apt/系统包管理改动系统 bazel；bazelisk 安装到用户目录；coralnpu/ 内文件零改动
 
@@ -12,7 +12,8 @@
 1. `bazel --version` 输出 `8.6.0`（经 bazelisk 下载），且退出码 0
 2. `bazelisk version` 可执行并识别 coralnpu `.bazelversion`
 3. 在 coralnpu/ 下执行 `bazel help` 不报版本不兼容错误
-4. 记录安装方式与版本到 `.tao/knowledge/changelog.md` 或工具链笔记（选择一项，见任务完成区）
+4. 前置检查结果（python3 版本、srec_cat 是否存在）已记录
+5. 记录安装方式与版本到 `.tao/knowledge/toolchain-notes.md`（新建，若不存在）；安装 bazelisk 非仓库代码改动，不写入 changelog.md
 
 ## 完成区
 **状态**：待开始

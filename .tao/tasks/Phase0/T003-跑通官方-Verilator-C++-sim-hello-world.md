@@ -9,15 +9,15 @@
 - 约束：不改 coralnpu/ 内文件；RISC-V 工具链已在 T002 首次构建中完成（本任务可复用缓存，若先于 T002 执行则同样耗时）
 
 ## 验收标准
-1. `bazel build //examples:coralnpu_v2_hello_world_add_floats` 成功，产物 ELF 存在于 `bazel-out/.../bin/examples/`
+1. `bazel build //examples:coralnpu_v2_hello_world_add_floats` 成功，产物 ELF 存在于 `bazel-bin/examples/coralnpu_v2_hello_world_add_floats.elf`（bazel-bin 符号链接指向实际 `bazel-out/.../bin/`）
 2. `bazel build //tests/verilator_sim:core_mini_axi_sim` 成功
 3. 运行：
    ```
    bazel-bin/tests/verilator_sim/core_mini_axi_sim \
      --binary bazel-bin/examples/coralnpu_v2_hello_world_add_floats.elf
    ```
-   退出码 0，日志/回读输出符合 hello world 语义（如加法结果正确）
-4. 记录运行方式与输出样例到 `.tao/knowledge/`（sim 运行笔记）
+   退出码 0，日志/回读输出包含预期数值（如加法结果），且记录中附输出样例
+4. 记录运行方式、命令与输出样例到 `.tao/knowledge/toolchain-notes.md`
 
 ## 完成区
 **状态**：待开始
