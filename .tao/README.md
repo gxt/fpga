@@ -11,6 +11,7 @@
 │   ├── tasks/       任务文件（架构师拆分的任务）
 │   ├── knowledge/   知识沉淀（工具链、器件、时序等经验）
 │   └── logs/        会话日志
+├── coralnpu/        Google Coral NPU（git submodule，见下节）
 ├── rtl/             源码（计划）
 ├── sim/             模拟环境（计划）
 ├── synth/           综合/实现工程（计划）
@@ -19,6 +20,20 @@
 ```
 
 当前仅完成仓库初始化，`rtl/`、`sim/`、`synth/` 目录随任务推进建立。
+
+## coralnpu 子模块管理
+
+coralnpu 以 git submodule 引入，作为首要复现对象。
+
+- **远端**：`origin` 指向**自己的 fork**（`https://github.com/gxt/coralnpu.git`），官方仓库为 `upstream`（`https://github.com/google-coral/coralnpu.git`），仅用于拉取上游更新。
+- **为什么**：官方仓库无写权限；子模块修改必须推送到自己的 fork，否则 `git submodule update` 会覆盖丢失本地改动。
+- **修改流程**：
+  1. 在 `coralnpu/` 内修改并 `git commit`
+  2. `git push origin <branch>`（推送到自己的 fork）
+  3. 在主仓库 `git add coralnpu`（更新 gitlink 指向新 commit）并提交
+  4. 记录实质改动到 `.tao/knowledge/changelog.md`
+- **同步上游**：`git -C coralnpu fetch upstream && git -C coralnpu merge upstream/main`，处理冲突后走上述推送流程。
+- **约定**：不改动官方代码时，子模块保持指向官方最新 commit；改动一律落回 fork。
 
 ## 角色流程
 
