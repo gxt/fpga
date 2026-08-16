@@ -1,0 +1,26 @@
+# Vivado / Xilinx 工具链产物
+*.jou
+*.log
+*.wdb
+*.xpr
+*.xci
+*.dcp
+.planAhead/
+.cache/
+.hw/
+.ip_user_files/
+.runs/
+.sdk/
+.sim/
+.tcl/
+.Xil/
+
+# 开源模拟/综合产物
+*.vcd
+*.fsdb
+*.fst
+*.lxt
+*.dump
+iverilog.out
+sim/out/
+build/
