@@ -51,8 +51,8 @@ coralnpu 以 git submodule 引入，作为首要复现对象。
 
 ## 本机环境约定
 
-- **可执行文件安装路径**：本账号（gxt）下安装的可执行文件在 `~/.local/bin/`（已在 PATH），**不是** `~/bin`。
-- **临时目录**：临时工作目录统一用 `/tmp/gxt/fpga/`，**不要使用 `/tmp/opencode/`**（其属主为 data，本账号无写权限）。
+本机/账号级环境约定（可执行文件路径、临时目录、用户名动态化）已移至全局 opencode 配置 `~/.config/opencode/instructions/env.md`，跨项目生效；本文件仅保留 bazelisk 版本选择说明。
+
 - **bazelisk 版本选择**：优先级（高→低）`USE_BAZEL_VERSION` 环境变量 > `~/.bazeliskrc` > workspace 根 `.bazelversion` > latest。已建 `~/.bazeliskrc`（`USE_BAZEL_VERSION=8.6.0`）全局兜底：任意目录 `bazel` 默认 8.6.0（已缓存，不触发下载），**不再自动下载最新版**。注意：bazeliskrc 优先于 workspace 内 `.bazelversion`，未来某 workspace 需其它版本时用环境变量临时覆盖；主仓库根不再维护 `.bazelversion`/`MODULE.bazel`（coralnpu/ 的 `.bazelversion` 声明 8.6.0）。
 
 ## 约定
@@ -60,24 +60,8 @@ coralnpu 以 git submodule 引入，作为首要复现对象。
 - 工作先读本文件，遵循全局 `~/.config/opencode/AGENTS.md` 规则。
 - 最小修改、一次一件事；复用优先，不过度设计。
 - 阶段交付时主动验证（跑模拟或综合命令）。
-
-## 命令执行与失败处理纪律
-
-适用于所有会话与子代理，尤其针对复杂/长耗时命令（bazel 构建、Vivado 综合等）。
-
-1. **执行前声明预期**：说明命令目的 + 期望的 exit code / 输出标志。
-2. **失败先诊断**：先读全量错误输出/日志，定位首个根因；禁止无依据重试或换参数乱试。
-3. **有依据重试，最多 2 次**：每次重试必须说明「改了什么、为何这次会成功」。
-4. **停止升级**：2 次无效立即停止，向用户汇报根因分析 + 候选方案，由用户决策。
-5. **长命令超时保护**：为 bazel/Vivado 类长命令设充足 timeout，避免中途被杀掩盖真实问题。
-6. **记录沉淀**：失败根因与坑写入任务文件「新发现/坑」及 `.tao/knowledge/`。
+- **命令执行与失败处理纪律**已移至全局配置 `~/.config/opencode/instructions/discipline.md`（所有会话与子代理强制遵循）。
 
 ## 查看进展与下一步
 
-```bash
-for f in .tao/tasks/Phase*/T*.md; do s=$(grep -m1 '^\*\*状态' "$f" | sed 's/.*：//'); echo "$(basename "$f" | cut -c1-4) [$s]"; done
-```
-
-- 状态机：`待开始 → 执行中 → 待验收 → 已验证`（详见 `agent/architect.md`）
-- 当前阶段与下一步：以 `.tao/knowledge/MEMORY.md` 为准（由 `/complete` 维护）
-- 任务流转：`/dispatch <T编号>` 下发 → engineer 实现 → `/complete` 收尾验收
+使用 `/status` 命令查看全部任务状态、当前阶段与下一步（等价功能，见 `~/.config/opencode/command/status.md`）。
