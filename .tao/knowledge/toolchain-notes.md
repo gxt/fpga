@@ -59,3 +59,32 @@
 - 验证类命令重跑（`bazel test`）默认命中 action cache，只显示 `(cached) PASSED`，**看不到 cocotb 详细输出**；要留证需加 `--nocache_test_results --test_output=all`（实测约 46s 真实重跑）
 - cocotb 测试输出含 `Cannot read termcap database` / `DeprecationWarning: COCOTB_TESTCASE is deprecated` 等噪音，不影响通过
 - 首次构建大部分时间耗在 hermetic verilator 源码编译（约 1/3 actions 为 V3*.cpp），二次构建秒级
+
+## Verilator C++ sim（core_mini_axi_sim，2026-08-17，T003）
+
+### 实测命令与结果
+
+- ELF 构建：`bazel build //examples:coralnpu_v2_hello_world_add_floats` → 成功，产物 `coralnpu_v2_hello_world_add_floats.elf`（RISC-V 32-bit ELF）
+- sim 构建：`bazel build //tests/verilator_sim:core_mini_axi_sim` → **首次直接失败**，需加 `--linkopt=-latomic`（见坑）
+- 运行（exit 0）：
+  ```
+  ./bazel-out/k8-fastbuild/bin/tests/verilator_sim/core_mini_axi_sim \
+    --binary ./bazel-out/k8-fastbuild-ST-dd8dc713f32d/bin/examples/coralnpu_v2_hello_world_add_floats.elf
+  ```
+- 运行输出样例（默认，仅 SystemC 信息）：
+  ```
+  SystemC 2.3.4-Accellera --- redacted redacted
+  Copyright (c) 1996-2022 by all Contributors,
+  ALL RIGHTS RESERVED
+
+  Info: /OSCI/SystemC: Simulation stopped by user.
+  ```
+- `--instr_trace` 追加指令 trace（`PC,INST,REG,DATA` 行），可见 main（0x144）循环 8 轮执行 flw/fadd.s/fsw（PC 0x158–0x174），全部 `trap=no`；`--debug_axi` 追加 TLM 事务日志（ELF 加载回读 Write+Read+Expect 一致、CSR 回读一致、状态 0x30008 回读 = 1）
+- **数值预期**：hello_world_add_floats 的 input1/input2 是未初始化 `.data`（链接后 ELF 段全零 = 0.0f），output[i] = 0.0f + 0.0f = 0.0f；程序无打印，验证靠 exit 0 + status 回读 1 + instr_trace trap=no
+
+### 坑 / 经验（T003）
+
+- **`//tests/verilator_sim:core_mini_axi_sim` 链接需 `-latomic`**：链接 `libverilator_lib.a` 时 `verilated.cpp/verilated_threads.cpp` 的 `std::atomic::is_lock_free()` 生成对 `__atomic_is_lock_free` 的外部引用，链接命令默认无 `-latomic` 报 undefined reference。解决：`bazel build //tests/verilator_sim:core_mini_axi_sim --linkopt=-latomic`（不改源码；系统有 `/usr/lib/gcc/x86_64-linux-gnu/11/libatomic.a`）
+- **`bazel-bin` 符号链接随最近一次 build 的目标配置切换**：构建 transition 目标（如 `//examples:...`）后 bazel-bin 指向 `bazel-out/k8-fastbuild-ST-<hash>/bin`，构建普通 host 目标（如 `//tests/verilator_sim:core_mini_axi_sim`）后指向 `bazel-out/k8-fastbuild/bin`。因此官方 README 中 `bazel-bin/... --binary bazel-bin/...elf` 混合写法不可靠——直接运行可能因 bazel-bin 指向的配置不含另一产物而报 `open() fd>0` 失败（absl CHECK abort）。**稳妥做法：两个二进制都用 `bazel-out/<配置>/bin/...` 完整路径**（ELF 在 ST 配置目录）
+- 运行可执行文件建议显式加 `./` 前缀
+- RISC-V 工具链 objdump/readelf/nm 位于 `~/.cache/bazel/_bazel_<user>/<outputbase>/external/toolchain_coralnpu_v2/bin/`（用于检查 ELF 段/符号/反汇编）
