@@ -10,20 +10,39 @@
   - **不在远程部署 opencode**，不启用「远端智能体」路由
   - 若后续长综合迭代拉日志往返频繁，再评估升级路径 B（远程 opencode，待用户再决策）
 
-## 执行拓扑三要素（T008 验收 4）
+## 执行拓扑三要素（T008 确定，2026-08-18）
 
-| 要素 | 现状 | 待定 |
+**结论：同步工程后纯 Vivado —— 本地生成/推送 RTL，服务器只跑 synth/impl/bitstream**
+
+| 要素 | 决策 | 依据 |
 | --- | --- | --- |
-| ① 服务器跑什么 | — | bazel fusesoc_build（服务器完整流程）或同步工程后纯 Vivado（T008 阶段确定） |
-| ② 依赖到位方式 | — | 本地 bazel 产物推送 / 服务器自拉缓存（含 RISC-V 工具链、IP 依赖） |
-| ③ 每步执行机器 | 综合/实现/bitstream：本机 ssh 远程执行；RTL 生成：本机 bazel | — |
+| ① 服务器跑什么 | **同步工程后纯 Vivado**：服务器不跑 bazel/fusesoc，只接受本地推送的 RTL（SystemVerilog）与工程，跑 `vivado -mode batch`（synth/impl/write_bitstream） | 实测服务器无 bazel/bazelisk/fusesoc、无 bazel 缓存（2026-08-18 `which bazel fusesoc` 为空）；装 bazel 全家桶 + 首次拉依赖成本高（本地 8.9G+，含 Chisel/verilator 等仿真依赖，综合并不需要）；T009 约束允许 fusesoc 不可用时走手工组工程偏离路径；ADR-002 决策 4 目标器件走 core_mini_axi 纯 SV |
+| ② 依赖到位方式 | **本地 bazel 产物推送**：RTL 在本地 `bazel build //hdl/chisel/src/coralnpu:<key>_emit_verilog` 生成 `.sv/.h/.zip`，`synth/sync.sh push rtl <key>` scp/rsync 推送远端 `~/fpga/rtl_out/<key>/`；服务器不自拉 bazel 缓存。第三方依赖（RISC-V 工具链、IP）不需要到服务器——服务器只碰 SV 与 Vivado 自带 IP | RTL 生成是纯宿主侧流程（Chisel→firtool→SV，见 coralnpu-build-map.md §1）；综合/实现不需要工具链与仿真依赖 |
+| ③ 每步执行机器 | RTL 生成（Chisel→SV）：**本地** bazel；综合（synthesis）、实现（place&route）、bitstream：**远端** Vivado batch（本机 ssh 直连 / `sync.sh exec` 托管）；结果（报告/bitstream/日志）**拉回本地**分析 | ADR-002 决策 2：本机不承担综合主责，本机 Vivado 仅辅助（工程查看/报告分析/IP 预生成） |
+
+> 若后续 T009 官方器件（xcvu13p）走 fusesoc 完整流程需要服务器 bazel，可作为增强项评估（需在服务器装 bazelisk 并冷拉依赖，预计与本地同等量级耗时），当前不启用。
 
 ## 文件交换
 
-- 以 scp 为主（传输命令见 `registry.md`）：本机推送 coralnpu 源码 / RTL 产物 / 工程 → 远程；远程结果（bitstream、报告、日志）拉回本机
-- 不把密码/密钥写入脚本或任务文件
+- **标准入口：主仓库 `synth/sync.sh`**（从 registry.md 自动解析服务器地址，`info/push src/push rtl <key>/push synth/pull/exec`）
+- 以 rsync 增量为主、scp 单文件为辅（传输命令与远端布局见 `registry.md` 与 `synth/README.md`）：本机推送 coralnpu 源码（`push src`）/ RTL 产物（`push rtl <key>`，远端 `~/fpga/rtl_out/<key>/`）/ 工程 → 远程；远程结果（`~/fpga/work/`）拉回本机 `synth/out/`
+- 不把密码/密钥写入脚本或任务文件（ssh 依赖密钥免密，BatchMode）
 
-## 关键命令记录
+## 关键命令记录（T008 实测）
 
-- 远程 `vivado -version` 输出（T008 验收 3，待 T008 执行时填写）
-- license 识别目标器件检查（T008 验收 5，待 T008 执行时填写）
+- 远程 `vivado -version`（2026-08-18，验收 3）：
+  ```
+  vivado v2025.1 (64-bit)
+  Tool Version Limit: 2025.05
+  SW Build 6140274 on Wed May 21 22:58:25 MDT 2025
+  IP Build 6138677 on Thu May 22 03:10:11 MDT 2025
+  SharedData Build 6139179 on Tue May 20 17:58:58 MDT 2025
+  ```
+  与本地一致（≥ 项目要求，支持目标器件）
+- license 识别目标器件检查（2026-08-18，验收 5，`vivado -mode batch` + `get_parts`）：
+  ```
+  xc7v2000tflg1925-1: RECOGNIZED -> xc7v2000tflg1925-1
+  xcvu13p-fhga2104-2-e: RECOGNIZED -> xcvu13p-fhga2104-2-e
+  virtex7 全族 part 数: 203
+  ```
+  检查 tcl 留存远端 `~/fpga/T008-get_parts.tcl`，完整日志 `.tao/logs/T008-license-get_parts.log`
