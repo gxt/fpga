@@ -5,8 +5,8 @@
 ## 当前进展（2026-08-18）
 
 - **阶段**：Phase3 综合
-- **下一步**：`/dispatch T010`（目标器件适配与 bitstream 生成：core_mini_axi + AXI 桥接顶层 + S2C 适配，器件 `xc7v2000tflg1925-1`）
-- 说明：Phase0/1/2 完成；T008/T009 已验证（综合工作流 + 官方器件基线 LUT 30.32%）；T009 基线含 8 条 CRITICAL WARNING 已披露；服务器 license 需 `XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic`
+- **下一步**：`/dispatch T011`（资源时序报告分析与知识沉淀）或直接 `/dispatch T012`（板卡加载 bitstream）；**T010 bitstream 已就绪（`synth/out/T010/top_coralnpu.bit`）**
+- 说明：Phase0/1/2 完成；T008-T010 已验证（综合工作流 + 官方基线 + **上板 bitstream 产出**）；T010 host 方案=UART 状态机主控；服务器 license `XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic`
 
 | 日期 | 项目/模块 | 状态 | 备注 |
 | --- | --- | --- | --- |
@@ -19,3 +19,4 @@
 | 2026-08-18 | Phase2 · T007 编写自定义测试程序 | 已验证 | 双模型交叉验收（含代码 review）；sim/ 新增 7 文件；见 changelog |
 | 2026-08-18 | Phase3 · T008 远程综合服务器工作流搭建 | 已验证 | 两轮 reviewer 验收 + Mimo 复核；synth/ 工作流脚本 + 拓扑三要素；见 changelog |
 | 2026-08-18 | Phase3 · T009 fusesoc 生成 Vivado 工程并跑通官方器件综合 | 已验证 | 两轮 reviewer 验收 + Mimo 复核；官方基线综合成功，产出 synth-notes.md；零代码改动 |
+| 2026-08-18 | Phase3 · T010 目标器件适配与 bitstream 生成 | 已验证 | 两轮 reviewer 验收 + Mimo 复核；上板 bitstream 产出（.bit/.bin）；synth/rtl/xdc/tcl/sim 新增；见 changelog |

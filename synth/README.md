@@ -33,3 +33,19 @@ rtl_out/<key>/     # 推送的 RTL 产物（sync.sh push rtl <key>）
 synth/             # 本目录镜像（sync.sh push synth）
 work/              # 远程综合工作目录：工程、报告、bitstream（sync.sh pull）
 ```
+
+## T010 上板工程（core_mini_axi + AXI 桥接）
+
+- 设计文件：`rtl/`（top_coralnpu.sv 顶层 + uart_rx/tx + host_cmd_fsm + axi_master_stub）、
+  `xdc/top_coralnpu.xdc`（S2C F1 引脚）、`tcl/build_top.tcl`（非工程 batch 构建）
+- 构建（服务器，`export XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic`）：
+  ```bash
+  cd ~/fpga/work/T010
+  vivado -mode batch -source ~/fpga/synth/tcl/build_top.tcl \
+    -tclargs <work_dir> <rtl_dir> <top_rtl_dir> <xdc_dir>
+  ```
+  - `<rtl_dir>` = `~/fpga/rtl_out/core_mini_axi`（CoreMiniAxi.sv）
+  - `<top_rtl_dir>` = `~/fpga/synth/rtl`；`<xdc_dir>` = `~/fpga/synth/xdc`
+- 产物：`top_coralnpu.bit` / `.bin` + 各阶段 rpt/dcp
+- 仿真验证：`sim/tb_top.sv`（xsim，USE_MMCM=0 直连时钟）—— 用法见文件头注释
+- host 协议（RS232 115200 8N1）：W/R/S/Q/? 命令，详见 `.tao/knowledge/synth-notes.md` T010 节
