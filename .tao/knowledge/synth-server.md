@@ -46,3 +46,11 @@
   virtex7 全族 part 数: 203
   ```
   检查 tcl 留存远端 `~/fpga/T008-get_parts.tcl`，完整日志 `.tao/logs/T008-license-get_parts.log`
+
+## T009 实测补充（2026-08-18，官方器件基线综合）
+
+- **license 配置（关键，T010/T011 必须）**：服务器需在综合命令前 `export XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic`（Vivado_System_Edition）。T008 的 `get_parts` "RECOGNIZED" ≠ 可综合（不耗 license）；首次综合因无 license 环境变量报 `Common 17-345`。当前仅命令内 export，未持久化（如需可加入 `~/.bashrc` 或综合脚本）
+- **官方器件综合流程（实测可行）**：本机 fusesoc 2.4.3 `run --target=synth --setup` 生成工程（官方流程，参数与 `_NEXUS_NAME_MAP` 一致）→ `sync.sh push` 到服务器 → 服务器 `make synth`。服务器无外网/pip 不可装 fusesoc；本地直接 fusesoc_build 会 OOM（内存峰值 22.8G > 本机 11G）
+- **内存**：`synth_design` PSS 峰值 22811MB → **服务器（62GiB）为唯一可行综合机**
+- **ispyocto**：`ispyocto.core` 的 `../../../external/` 相对路径在非 bazel 环境需 `coralnpu/external/ispyocto` 符号链接
+- **综合结果**：xcvu13p-fhga2104-2-e，0 errors，耗时 1h25m39s，资源基线见 `synth-notes.md`

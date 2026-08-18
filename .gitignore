@@ -24,3 +24,6 @@
 iverilog.out
 sim/out/
 build/
+
+# 工作目录（engineer 中间产物）
+.work/
