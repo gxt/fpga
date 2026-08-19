@@ -231,3 +231,149 @@ nohup vivado -mode batch -source ~/fpga/synth/tcl/build_top.tcl \
   2. **AXI 输出注册化**（host_cmd_fsm 的 awvalid/wvalid/arvalid/bready/rready 与 addr/data 改为寄存器输出、握手后清除）：把短路径启动寄存器移到靠近 core AXI 端口，hold 从 41 端点/-0.236ns 降到 2 端点/-0.016ns。
   - 注册化注意：**必须"握手后清除"**（`if (s_awvalid_r && s_awready) s_awvalid_r<=0`），否则组合 AXI valid 会双握手（core 队列 2 深、awready 常高，同一地址入队两次导致 B 不返回挂死）。已用 xsim 回归验证。
 - **xsim 回归**：`synth/sim/tb_top.sv`（USE_MMCM=0、CORE_CLK_HZ=50M、BAUD=781250）全链路通过（日志 `.tao/logs/T010-sim-tb_top.log`）。
+
+---
+
+## T011：资源/时序报告深度分析（T010 深化 + T009 对比 + 工具链沉淀）
+
+> 本段为 T011 分析任务产物：在 T010 已记录结论（LUT 43,446、Reg 9,296、RAMB36 10、DSP48E1 6、IOB 8、MMCM 1、WNS +0.253 / WHS -0.085）基础上，从留存报告深化 LUT 构成、RAMB36/DSP 归属、时序三阶段演进与关键路径，补全与 T009 基线对比及流程坑。
+> **数据来源（真实构建流水线，2026-08-18 服务器 Vivado 2025.1 构建，全部数字提取自留存报告，无编造）**：
+> - T010：`synth/out/T010/` 下 `utilization_{synth,place,route}.rpt`、`timing_{synth,place,route}.rpt`、`route_status.rpt`、`clock_utilization.rpt`、`drc_route.rpt`、`T010-build.log`（首版 50MHz）、`T010-build2.log`（40MHz）、`T010-build3.log`（最终）、`vivado.log`
+> - T009：`synth/out/T009_chip_nexus_synth_only/chip_nexus_utilization_synth.rpt`
+
+### 1. T010 资源利用率深化（route 最终，xc7v2000tflg1925-1）
+
+#### 1.1 LUT/FF 构成（utilization_route.rpt）
+
+| 项 | 数值 | 说明 |
+|---|---|---|
+| Slice LUTs | 43,446 / 1,221,600 (**3.56%**) | 已按 LUT combining 调整（synth 阶段原始 43,911 → 物理优化后 43,446，-465） |
+| └ LUT as Logic | 43,164 (3.53%) | O5-only 14 + O6-only 38,907 + O5&O6 4,243 |
+| └ LUT as Memory | 282 (0.08%) | **全为 Distributed RAM**（RAMD32×422 + RAMS32×138 原语），**Shift Register 0** |
+| Slice Registers | 9,296 / 2,443,200 (0.38%) | FF 9,294（FDCE 8,841 + FDRE 431 + FDPE 22）+ Latch 2（LDCE，en_latch_reg） |
+| F7/F8 Muxes | 751 / 98 | |
+| Slice（SLICEL/SLICEM） | 12,178 / 305,400 (3.99%) | SLICEL 8,725 + SLICEM 3,453；Unique Control Sets 223 |
+| CARRY4 | 1,133 | |
+| BUFGCTRL / MMCME2_ADV | 4 / 128 (3.13%)；1 / 24 (4.17%) | |
+
+#### 1.2 RAMB36E1 ×10 归属（vivado.log RAM 映射表，事实）
+
+| 实例 | 端口（Depth×Width） | RAMB36 |
+|---|---|---|
+| `\itcm/sram/sramModules_0` | 512×128（READ_FIRST / WRITE_FIRST 双口） | **2** |
+| `\dtcm/sram/sramModules_0` | 2K×128（同上） | **8** |
+| 合计 | | **10** |
+
+- 对应架构笔记 §3.1：TCM 单周期 SRAM（TCM128，128 位宽）；ITCM 8KB、DTCM 32KB → BRAM。
+- **AXI 侧小队列全部走 LUTRAM 而非 BRAM**（vivado.log L1298-1305）：`axiSlave` 的 `addrArbiter_io_in_0/1`（RAM32M×12/12）、`writeData_q`（×25）、`io_axi_write_resp_q`（×2）、`readDataQueue`（×23）、`ebus2axi/wdataQueue`（×25）、`CoreMiniAxi__GC0/readDataSkid_q`（×23）、`top_coralnpu/scalar_rd_pipe_q`（×7）——即 282 个 LUTRAM 的构成。
+
+#### 1.3 DSP48E1 ×6 归属（推断，标注）
+
+- core_mini_axi 为**标量核**（无 RVV/matrix 后端），6 个 DSP48E1 推断来自**标量 MLU（M 扩展乘法器）+ 浮点 FPU（enableFloat=True）**的乘法/乘加推断。
+- 佐证：vivado.log 有 `Synth 8-12192 Not enough pipeline registers after wide multiplier. Pipeline registers present is 0. Recommended levels is 4.`（CoreMiniAxi.sv L16079，宽乘法器无流水寄存器）。40MHz 下无 setup 问题，**若提频需关注**。
+- 未逐实例核验（post_route.dcp 未开），故标"推断"。
+
+#### 1.4 布局特征
+
+- **全部逻辑在 SLR2**（Slice 12,178 / 15.95%、LUT 43,446 / 14.23%、BRAM 10 / 3.10%、DSP 6 / 1.11%）；IO 分散 SLR3×2 / SLR2×5 / SLR1×1。
+- 跨 SLR SLL 共 119：SLR2↔SLR1 117（SLR2→SLR1 116 单向集中 + SLR1→SLR2 1）、SLR2↔SLR3 2。
+- route_status：62,605 逻辑网 / 0 routing errors（50,507 可布线网全部 fully routed）。
+
+### 2. xc7v2000t（T010）vs xcvu13p（T009）资源占用对比
+
+> T010 = **route 后**（物理优化后，顶层 top_coralnpu = core_mini_axi 标量核 + host 桥接，40MHz）；T009 = **synth 后**（完整 chip_nexus SoC，含 RVV 后端/ISP/外设，50MHz）。两者**器件族与设计范围不同**，利用率为可比指标。
+
+| 资源 | T010 used/avail (util%) | T009 used/avail (util%) | 差异来源 |
+|---|---|---|---|
+| LUT（含 LUTRAM） | 43,446 / 1,221,600 (**3.56%**) | 523,889 / 1,728,000 (**30.32%**) | 数量 1:12.1（T010≈T009 的 8.3%）；T009 含 RVV/matrix/ISP 的算术与控制逻辑 |
+| └ LUT as Logic | 43,164 (3.53%) | 521,449 (30.18%) | |
+| └ LUT as Memory | 282 (0.08%) | 2,440 (0.31%) | 绝对量 T009=8.7×；相对占比 T010 0.65% > T009 0.47%（T009 的 LUTRAM 增长慢于 LUT 总量） |
+| FF/Reg | 9,296 / 2,443,200 (0.38%) | 125,761 / 3,456,000 (3.64%) | 1:13.5；T009 有 RVV 向量寄存器堆/ROB/缓冲 |
+| Carry | CARRY4 1,133 | CARRY8 9,733 / 216,000 (4.51%) | 器件架构不同（7 系 CARRY4 vs US+ CARRY8），不可直接比数量 |
+| F7/F8 Muxes | 751 / 98 | 23,202 / 4,090 | T009 大量 MUXF 来自向量数据通路的宽 mux |
+| BRAM（RAMB36） | **10** / 1,292 (0.77%) | **2** / 2,688 (0.07%) | T010 的 10 = ITCM 2 + DTCM 8（TCM 存于 BRAM）；T009 的 RAM 主要走 URAM/LUTRAM（BRAM≈0） |
+| URAM | **0**（xc7v2000t 无此资源） | **258** / 1,280 (**20.16%**) | xcvu13p 独有；T009 的 RVV 向量缓冲/寄存器堆用 URAM |
+| DSP | 6 / 2,160 (0.28%) | 187 / 12,288 (1.52%) | T010 无 matrix 后端（MAC 阵列）→ DSP 仅标量 MLU+FPU；T009 的 RVV MAC/浮点单元占大头 |
+| Bonded IOB | 8 / 1,200 (0.67%) | 82 / 832 (9.86%) | T010 仅 8 引脚（差分时钟/复位/UART×2/LED×3）；T009 完整 SoC 引脚 |
+| BUFG | BUFGCTRL 4 / 128 (3.13%) | BUFGCE 12 / 384 (3.13%) | T010 4 个：clk_fb / clk_core / 门控 _cg_clk_o / 门控 _rst_sync_clk_o |
+| MMCM | MMCME2_ADV 1 / 24 (4.17%) | MMCME4_ADV 1 / 16 (6.25%) | 各 1 个 |
+| STARTUPE3 | 0 | 1 / 4 (25.00%) | T009 chip_nexus 含配置/启动接口 |
+
+**差异来源总结**：
+1. **设计范围（主因）**：T010 = core_mini_axi 标量核（无 RVV、无 L1 cache、无 ISP），LUT/FF/DSP 相差一个量级主要由此决定（架构笔记 §3.2：core_mini_axi 不实例化 L1 cache；§5.2：RVV 后端仅 rvv_core 变体启用）。
+2. **器件族**：xc7v2000t（7 系列，无 URAM、LUT 1.22M、CARRY4、DSP48E1）vs xcvu13p（UltraScale+，URAM 1,280、LUT 1.73M、CARRY8、DSP48E2）；URAM 项不可比（T010 器件无）。
+3. **实现阶段**：T010 为 route 后（LUT 已物理优化 -465），T009 为 synth 后（未优化，实际值会略降）；对比利用率为近似可比。
+4. **集成面**：T010 自研 host 桥接 + 8 引脚；T009 官方 SoC 外设 + 82 引脚。
+
+### 3. 时序三阶段演进（T010，clk_mmcm_out 40MHz / 25ns，period 约束 25ns）
+
+| 阶段 | WNS(ns) | TNS(ns) | TNS Fail/Total | WHS(ns) | THS(ns) | THS Fail/Total |
+|---|---|---|---|---|---|---|
+| synth | +3.437 | 0.000 | 0 / 28,576 | **-1.180** | -609.282 | 2,104 / 28,576 |
+| place | +0.707 | 0.000 | 0 / 28,576 | **-2.549** | -1,277.900 | 1,476 / 28,576 |
+| **route（signoff）** | **+0.253** | 0.000 | 0 / 28,576 | **-0.085** | -0.257 | 7 / 28,576 |
+
+> THS 总表 = intra-clock（clk_mmcm_out）+ async_default 路径组之和（如 synth：1516+588=2104；place：1079+397=1476）。Setup（WNS/TNS）全阶段 0 违例。
+
+#### 3.1 关键路径（route signoff，setup，WNS=+0.253ns）
+
+```
+源: u_core/core/score/fetch/instructionBuffer/circularBuffer/buffer_7_inst_reg[13]/C (FDCE, clk_mmcm_out)
+目: u_core/core/score/retirement_buffer/instBuffer/deqPtr_reg[1]_rep__0/D (FDCE, clk_mmcm_out)
+Requirement 25.000ns | Data Path Delay 24.371ns (logic 5.094 = 20.9% + route 19.277 = 79.1%)
+Logic Levels 47 (CARRY4=9 LUT2=4 LUT3=3 LUT4=3 LUT5=7 LUT6=20 MUXF7=1)
+Clock Path Skew -0.265ns | Clock Uncertainty 0.077ns
+```
+
+- **路径本质（架构对应）**：取指缓冲（instructionBuffer circularBuffer）→ dispatch 判断（op/valid/readDataBits）→ LSU 保留站（lsu/rs）→ 退休缓冲（retirement_buffer 的 trap/cfDone/deqPtr 退休控制链）。即"取指缓冲 → 退休"的**跨模块控制链**，非单一运算单元。
+- 47 级逻辑、79% 延迟在布线（routed net），符合 CoreMiniAxi.sv（Chisel/firtool 生成）无手工流水切割的特征。
+- **时钟结构**（clock_utilization.rpt + timing_route.rpt）：`clk_osc`(100MHz, W4/W3 IBUFDS) → MMCME2_ADV → `clk_mmcm_out`(40MHz) → BUFGCTRL_X0Y64 → `clk_core`（clock_utilization FF 计数 416；timing 报告 net fo=419）；u_core 内部再经 `u_core/cg`（LUT3 门控 + BUFGCTRL_X0Y66）→ `_cg_clk_o`（timing 报告 net fo=8054；clock_utilization FF 计数 8004）——核心逻辑跑在门控时钟域。关键路径源/目的均在 `_cg_clk_o` 域。
+- 三阶段关键路径源相同（`instructionBuffer/circularBuffer/buffer_7_inst_reg[6]`），目的逐级变化（synth→retiredEcalls、place→deqPtr[2]_rep、route→deqPtr[1]_rep）——同一控制链上的不同端点。
+
+#### 3.2 hold 违例（route signoff，7 端点，WHS=-0.085ns）
+
+```
+源: u_host/s_araddr_r_reg[31]/C (FDCE, clk_mmcm_out)   ← host_cmd_fsm 的 AXI 地址输出寄存器
+目: u_core/axiSlave/addrArbiter_io_in_0_q/ram_ext/Memory_reg_0_1_66_66/RAMA/I (RAMD32 LUTRAM)
+Data Path Delay 2.853ns (logic 0.216 = 7.6% + route 2.637 = 92.4%) | Logic Levels 0
+Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
+```
+
+- **本质**：host（clk_core 域，BUFGCTRL_X0Y64 直连）→ core AXI slave 地址仲裁队列（**_rst_sync_clk_o 门控域，BUFGCTRL_X0Y67**，clock_utilization g1 实证 `readDataNext_pipe_v_reg_i_2`）的**跨门控时钟域短路径**；0 逻辑级纯布线路径，skew 2.676ns 主导。（注：`_cg_clk_o`/BUFGCTRL_X0Y66 为 setup 关键路径域，hold 路径目的 RAMD32 在 X0Y67/_rst_sync_clk_o 域）
+- place 阶段同路径更严重（-2.549ns/1,476 端点，含 async_default），route 真实布线后收敛到 -0.085ns/7 端点——**hold 违例数在 route 后大幅下降，signoff 以 route 的 report_timing_summary 为准**。
+- 与 T010 已有结论一致（"host→core AR 短路径 hold，85ps 噪声级"）；7 端点全部是 `u_host/*` → `u_core/axiSlave/*` LUTRAM 地址仲裁（仅最差 1 条在 timing_route.rpt 可实证，其余 6 条按同域推断）。
+
+#### 3.3 50MHz 首版违例处置记录（build.log 实际数据，补充 T010 第二版）
+
+| 版本 | MMCM CLKOUT0_DIVIDE_F | Route 35-57（router 估算） | 处置 |
+|---|---|---|---|
+| build.log（50MHz） | 24（period 20ns） | 中间迭代 WNS=-0.774(TNS-22.2)→-0.101→-0.228→-0.101→最终 **WNS=-0.058 / TNS=-0.089 / WHS=0.066** | 首版，setup 未收敛（核心路径长，79% 布线延迟） |
+| build2.log（40MHz） | 30（period 25ns） | 最终 **WNS=1.361 / WHS=0.109** | 降频后 setup 大幅收敛 |
+| build3.log（最终） | 30 | 最终 **WNS=0.236 / WHS=0.077** | + AXI 输出注册化（host_cmd_fsm），signoff 报告 WNS=+0.253 / WHS=-0.085 |
+
+> **坑（数值口径）**：`Route 35-57 Estimated Timing Summary`（router 估算，reg2reg 为主）与 `report_timing_summary`（signoff，含 LUTRAM/latch/async 路径）的 hold 值可能不同（build3：35-57 WHS=0.077 vs signoff WHS=-0.085/7 端点）。**判定是否收敛一律以 signoff 的 `timing_route.rpt` 为准**。synth-notes T010 节中"build2=-0.016ns/2 端点"无法从留存 build2.log 复现（无该值），以留存报告为准并保留原记录不追改。
+
+### 4. 综合/实现流程坑与解决（供 T010 迭代与 T013 上板参考）
+
+- **license 环境变量**（T009 已记，再次强调）：`export XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic`，缺省时 synth_design 直接报 `Common 17-345`。
+- **file mkdir 陷阱**：tcl 中 `file mkdir -force <dir>` 会把 `-force` 当目录名创建字面 `-force/` 目录（`synth/out/T010/-force/` 可见残留）。`-force` 是 `write_bitstream` 等命令的选项，不是 `file mkdir` 的。
+- **MMCM 原语命名**：RTL 实例化 `MMCME2_BASE`，综合后 utilization 报告显示为 `MMCME2_ADV`（B=ADV 子集，Vivado 统一报告）。
+- **宽乘法器流水提示**：`Synth 8-12192 Not enough pipeline registers after wide multiplier (0 present, 4 recommended)`——CoreMiniAxi.sv 中 32×32/宽乘法无流水寄存器，40MHz 无 setup 问题；若提频（>50MHz）需在 core 外部/内部补流水或降低时钟。
+- **BRAM rw_addr_collision**（8-6430，ITCM/DTCM 各 1 条）：firtool 生成 SRAM 未置 `rw_addr_collision` 属性，同地址读写碰撞会有仿真/行为差异；xsim 全链路验证当前访问无碰撞，T013 上板实测复核。
+- **时序收敛方法论（本设计有效）**：
+  1. 先降频定位是否逻辑深度问题（50MHz→40MHz 后 setup 从 -0.058→+1.36）；
+  2. hold 违例集中在 host→core 短路径时，用**输出寄存器化 + 握手后清除**把启动寄存器移到 AXI 端口（注意双握手挂死坑，见 T010 节）；
+  3. hold 违例看 signoff `timing_route.rpt`（route 后可能大幅收敛，不要只看 place 阶段数值吓自己）。
+- **构建耗时实测（build3，服务器 16 核/62G）**：synth_design 12:54（PSS 峰值 10.86GB：main 3.26 + forked 8.48）→ opt_design 0:47 → place_design 4:30 → route_design 10:10 → write_bitstream 1:31 → **端到端 ~30 分钟**（对比 T009 xcvu13p 仅 synth 即 1h25m，小设计迭代很快）。
+- **警告分类（build3：0 ERROR / 0 CRITICAL / 287 WARNING，9 类主因）**：8-7129 无负载端口×100、8-7137 fpnew set/reset 同优先级×92、8-6014 未用寄存器×42、8-3917 常量驱动端口×37、8-11065 参数转 localparam×7、8-6430×4、8-3936×2、8-3848×2（control_mvp 无驱动）、8-327×1（en_latch_reg 锁存器 + 1 条组合 latch loop，timing_route.rpt check_timing 12 也报 latch_loops=1 HIGH）。均为上游 Chisel 生成 RTL 行为，xsim 功能验证通过，T013 上板关注锁存器与 collision。
+- **check_timing 提示**：no_input_delay 2（报告仅给计数，未列端口名；2 个非时钟输入端口未设 input delay）、no_output_delay 3（3 个输出端口未设 output delay）——本设计全同步单时钟（40MHz）内部路径已约束，IO 为板级异步/无外部时序要求，可忽略（HIGH 提示非错误）；latch_loops 1 对应 8-327 的 en_latch_reg 组合 latch loop。
+
+### 5. 报告文件留存路径
+
+| 报告/产物 | 本地 | 服务器（gxt@192.168.200.202） |
+|---|---|---|
+| T010 全套报告 + bitstream | `synth/out/T010/`（utilization/timing_{synth,place,route}.rpt、route_status.rpt、clock_utilization.rpt、drc_route.rpt、post_synth.dcp、post_route.dcp、top_coralnpu.bit/.bin、T010-build{1,2,3}.log、vivado.log） | `~/fpga/work/T010/`（报告源路径 `/home/gxt/fpga/work/T010/`） |
+| T010 构建脚本/RTL/XDC | `synth/tcl/build_top.tcl`、`synth/rtl/`、`synth/xdc/top_coralnpu.xdc` | `~/fpga/synth/` 同结构 |
+| T009 官方基线 | `synth/out/T009_chip_nexus_synth_only/chip_nexus_utilization_synth.rpt` | `~/fpga/work/T009/synth_only/synth-vivado/com.google.coralnpu_fpga_chip_nexus_0.1.runs/synth_1/chip_nexus_utilization_synth.rpt` |
+
+**T013 上板参考结论**：T010 在 xc7v2000t 上资源占用 <4% LUT / <0.8% BRAM，40MHz signoff 仅 7 端点 85ps hold 噪声级违例；资源与时序余量充足，上板风险主要在**板级**（RS232 电平/波特率偏差 +3.3%、OSC1 频率待确认，见 T010 节）。

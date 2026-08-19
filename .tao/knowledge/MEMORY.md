@@ -4,9 +4,9 @@
 
 ## 当前进展（2026-08-18）
 
-- **阶段**：Phase3 综合
-- **下一步**：`/dispatch T011`（资源时序报告分析与知识沉淀）或直接 `/dispatch T012`（板卡加载 bitstream）；**T010 bitstream 已就绪（`synth/out/T010/top_coralnpu.bit`）**
-- 说明：Phase0/1/2 完成；T008-T010 已验证（综合工作流 + 官方基线 + **上板 bitstream 产出**）；T010 host 方案=UART 状态机主控；服务器 license `XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic`
+- **阶段**：Phase3 综合（完成）→ Phase4 板级
+- **下一步**：`/dispatch T012`（板卡加载 bitstream 与连通性验证，需本机连板卡 + JTAG cable；**需确认 OSC1 实际频率与 RS232 线缆**）
+- 说明：Phase0-3 全部完成（T001-T011 已验证）；**上板 bitstream 就绪**（`synth/out/T010/top_coralnpu.bit`）；资源分析已沉淀（xc7v2000t LUT 3.56%，与 xcvu13p 基线对比）；服务器 license `XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic`
 
 | 日期 | 项目/模块 | 状态 | 备注 |
 | --- | --- | --- | --- |
@@ -20,3 +20,4 @@
 | 2026-08-18 | Phase3 · T008 远程综合服务器工作流搭建 | 已验证 | 两轮 reviewer 验收 + Mimo 复核；synth/ 工作流脚本 + 拓扑三要素；见 changelog |
 | 2026-08-18 | Phase3 · T009 fusesoc 生成 Vivado 工程并跑通官方器件综合 | 已验证 | 两轮 reviewer 验收 + Mimo 复核；官方基线综合成功，产出 synth-notes.md；零代码改动 |
 | 2026-08-18 | Phase3 · T010 目标器件适配与 bitstream 生成 | 已验证 | 两轮 reviewer 验收 + Mimo 复核；上板 bitstream 产出（.bit/.bin）；synth/rtl/xdc/tcl/sim 新增；见 changelog |
+| 2026-08-18 | Phase3 · T011 资源时序报告分析与知识沉淀 | 已验证 | 两轮 reviewer 验收 + Mimo 复核；资源构成/对比表/时序分析沉淀 synth-notes.md；零代码改动 |
