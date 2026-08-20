@@ -77,3 +77,12 @@
 3. **若修 host FSM 连续命令**：修后机器202 重综合（build_top.tcl）+ 重新烧录（program_top.tcl）
 4. **Debug 通道**：阶段 A 协议已验证（Dbg 寄存器 + 清队列），上板不工作待波形级排查
 5. **工具提醒**：串口用 `sg dialout`（当前 opencode 会话）；SRAM 复位不清，读回旧值属正常
+
+### 调试现场：方案 A（host_tcm 直写 ITCM）已烧录待测（2026-08-20 现场快照）
+
+- **当前状态**：新 bit `T010-hosttcm/top_coralnpu.bit`（含 **host_tcm 直写端口**，绕过 AXI）已烧录上板，DONE HIGH
+- **待办**：**SW1 复位后**测试 W 写 ITCM 连续多字（直写应不再卡 AXI）+ R 读回验证
+- **改动**：coralnpu fork `d74e0ac8`（CoreAxi 加 host_tcm 端口，ITCM arbiter 4 端口）；主仓库 `72a4fae`（host_cmd_fsm W 写 ITCM 走直写）+ `b4e6dcd`（信号声明顺序）
+- **测试脚本**：`sim/uart_slow_test.py`（100ms 间隔 DTCM/ITCM 连续写）、`sim/diag_itcm_write.py`
+- **相关环境**：bazel 需 `CC=clang-14`（Ubuntu 24.04 clang-18 modules 不兼容）
+- **恢复步骤**：复位 → `sg dialout` 跑 uart_slow_test.py → 验证 ITCM 直写全过 → 记录结果
