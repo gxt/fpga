@@ -433,3 +433,11 @@ Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
 - **排除**"复位后时钟门控致 host 写 ITCM SLVERR"假设（ITCM 非门控域）
 - 上板 host 连续命令卡疑**上板时序**（B 响应/握手上板异常），仿真（T010 tb）正常、难复现
 - 下一步候选：① 机器202 用上板配置（40MHz MMCM）仿真重现；② 上板 ILA 探针诊断 B 响应时序；③ 接受阻塞，转向其他任务
+
+### host 连续命令卡：排除速度，发现"~3-4 字"规律（2026-08-20）
+
+- **100ms 间隔实验**（uart_slow_test.py）：连续写 DTCM 仅 3/16（第 4 字 0x1000C 卡/空响应）；ITCM 复位后不稳定
+- **排除速度/缓冲**：100ms 间隔 >> 任何缓冲需求，仍卡——非吞吐问题
+- **规律**：连续 AXI 写 TCM **~3-4 个 32 位字后 host 卡**（DTCM 3 字、ITCM 3-14 字不定）
+- **疑点**：AxiSlave `Queue(io.axi.write.data, 3)`（深度 3）+ fabricMux/itcmArbiter 写路径上板时序；或 B 响应累积
+- 下一步：深挖 AxiSlave/fabricMux 写路径（上板时序）+ 机器202 40MHz 仿真重现
