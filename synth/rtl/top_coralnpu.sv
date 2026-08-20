@@ -18,7 +18,6 @@
 //   CORE_CLK_HZ = MMCM 输出频率（默认 40MHz，同时是 UART 波特率基准）
 //   MMCM 比例：CLK_IN × MMCM_MULT / MMCM_DIVCLK / MMCM_OUT_DIV = CORE_CLK
 module top_coralnpu #(
-...
     parameter int  CLK_IN_HZ   = 100_000_000,   // s2cclk_1 (L4/L3) 100MHz 输入
     parameter int  CORE_CLK_HZ = 40_000_000,    // MMCM 输出频率（40MHz：在 xc7v2000t -1
                                                 //   上给时序留出裕量；50MHz 有 -0.15ns 违例，
