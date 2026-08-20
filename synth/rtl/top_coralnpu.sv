@@ -9,7 +9,8 @@
 //
 // 器件：xc7v2000tflg1925-1（F1）
 // 引脚映射（见 synth/xdc/top_coralnpu.xdc 与 board-notes.md）：
-//   s2cclk_1: L4(P)/L3(N)（100MHz 差分，JG1/JG2）；SW1: AP31；J26 RX: F20；J26 TX: E20；
+//   s2cclk_1: L4(P)/L3(N)（100MHz 差分，JG1/JG2）；SW1: AP31（低有效）；
+//   子板 UART: uart_rx=AV42、uart_tx=AU42（1.8V，硬件工程师 2026-08-20）；
 //   LED40: K25（halted）；LED41: K28（fault）；LED42: J28（locked）
 //
 // 时钟参数（2026-08-20 已确认：时钟源 = s2cclk_1 L4/L3 100MHz，OSC1 W4/W3 48MHz 已废弃）：

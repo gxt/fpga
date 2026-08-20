@@ -22,10 +22,12 @@ set_property -dict {PACKAGE_PIN L3 IOSTANDARD LVDS} [get_ports {clk_n}]
 set_property -dict {PACKAGE_PIN AP31 IOSTANDARD LVCMOS18 PULLUP true} [get_ports {rst_btn_n}]
 
 # -----------------------------------------------------------------------------
-# RS232 J26 —— F1.E20 = TX（FPGA→PC）、F1.F20 = RX（PC→FPGA），1.8V 逻辑
+# FPGA 子板 UART —— 硬件工程师提供（2026-08-20）：uart_rxd=AV42、uart_txd=AU42，1.8V
+#   uart_rx（FPGA 接收，PC→FPGA）= AV42；uart_tx（FPGA 发送，FPGA→PC）= AU42
+#   （注：J26 RS232 F20/E20 非正确通路，改用子板 UART）
 # -----------------------------------------------------------------------------
-set_property -dict {PACKAGE_PIN E20 IOSTANDARD LVCMOS18} [get_ports {uart_tx}]
-set_property -dict {PACKAGE_PIN F20 IOSTANDARD LVCMOS18} [get_ports {uart_rx}]
+set_property -dict {PACKAGE_PIN AU42 IOSTANDARD LVCMOS18} [get_ports {uart_tx}]
+set_property -dict {PACKAGE_PIN AV42 IOSTANDARD LVCMOS18} [get_ports {uart_rx}]
 
 # -----------------------------------------------------------------------------
 # 测试区 LED（输出 H 点亮）—— F1_TEST7=LED40=K25、F1_TEST8=LED41=K28、

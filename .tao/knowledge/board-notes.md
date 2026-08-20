@@ -14,7 +14,7 @@
 | 封装 | FLG1925 |
 | 速度等级 | -1（用户提供；Vivado 2025.1 已验证 `xc7v2000tflg1925-1` 有效。封装全部可用等级：-1/-2/-2G/-2L） |
 | 参考时钟 | 14 全局时钟：2×OSC 插座 + 6 对可编程差分 + 6 对 SMB 差分 + 6 对反馈差分。**关键（2026-08-20 实测/资料核实）**：**100MHz 差分 = L4(P)/L3(N)**（JG1/JG2 · s2cclk_1，XDC `create_clock -period 10.000`）；**OSC1 = W4(P)/W3(N)（LVDS 晶振座）实为 48MHz，vivado-risc-v 实测已废弃**（DualV7 资料 `V7-FPGA-HW-Description.md`） |
-| UART | **J26 = RS232 接口**（手册 8.9 节，S6.4=OFF 启用 F1）：J26.1(TX)=**E20**、J26.2(RX)=**F20**（1.8V）；需 RS232 线缆（TTL 转 USB 或 DB9）。另一路 UART0 在 J8-46/48（AU42/AV42）→ CH341 `/dev/ttyUSB2`（DualV7 实测） |
+| UART | **FPGA 子板 UART（硬件工程师 2026-08-20）**：`uart_rxd=AV42`、`uart_txd=AU42`，**1.8V**（对应 J8-46/48 → CH341 `/dev/ttyUSB2`，DualV7 实测）。~~J26 RS232（TX=E20/RX=F20）~~ **非正确通路，改用子板 UART** |
 | JTAG | J24，标准 Xilinx 14-pin（VREF/TMS/TCK/TDO/TDI，2×7 GND），Xilinx Download cable |
 | 配置方式 | JTAG / USB（TAI Player）/ SD card / Ethernet；由 Spartan-6 控制器管理电源、时钟与配置 |
 | 状态指示 | LED1（F1_DONE）、LED11（F2_DONE） |
