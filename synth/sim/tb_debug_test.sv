@@ -80,7 +80,6 @@ module tb_debug_test;
     endtask
 
     // 读取一行响应（直到 \n），返回前 16 字符（addr+data）
-    int buf [$];
     task automatic recv_hexline(output logic [31:0] hexval);
         logic [7:0] b;
         logic [31:0] v = 32'h0;
