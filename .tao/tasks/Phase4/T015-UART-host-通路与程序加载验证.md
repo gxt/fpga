@@ -16,7 +16,13 @@
 5. 记录完整命令序列/脚本（可复现，放主仓库 `sim/` 或 `synth/` 下）
 
 ## 完成区
-**状态**：待开始
+**状态**：待开始（已部分执行，阻塞中——详见 board-debug-log.md）
+**当前进展**：
+- ✅ UART 通路验证：`?`→HELP、Q 读状态、W/R 写读 **DTCM(0x10000)** 一致
+- ✅ 子板 UART（AV42/AU42 → CH341 `/dev/ttyUSB0`，115200）
+- ❌ **ITCM 加载阻塞**：host 经 AXI 写 ITCM 上板 SLVERR；连续命令后 host 卡住（单命令正常）；复位后核复位+时钟门控（resetReg=3）排除核冲突
+- **根因方向**：host_cmd_fsm 连续 AXI 写事务上板时序（XW_B 响应），需 RTL 分析 + 仿真重现
+- 调试过程/脚本/工具见 `.tao/knowledge/board-debug-log.md`
 **Commit**：
 **测试结果**：
 **修改文件**：

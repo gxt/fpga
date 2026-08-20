@@ -10,7 +10,15 @@
 - **烧录**：`synth/tcl/program_top.tcl`（probe/program 两模式，机器201 执行）
 - **复位**：SW1（AP31，低有效）——**每次测试前需人工复位；复位不清 SRAM**（ITCM/DTCM 内容保留）
 - **命令协议**（T010 host_cmd_fsm）：`W<8hex addr><8hex data>` 写 / `R<8hex addr><2hex count>` 读 / `S` 引导 / `Q` 状态(CSR_STATUS 0x30008) / `?` 帮助，LF 结尾
-- **脚本**：`sim/load_elf_uart.py`（ELF 加载）、`sim/debug_write_tcm.py`（Debug 写 ITCM 上板）、`sim/diag_itcm_write.py`（ITCM 写诊断）、`synth/sim/tb_debug_test.sv`（T016 阶段 A 仿真 tb）
+- **脚本**：`sim/load_elf_uart.py`（ELF 加载，可用）、`sim/debug_write_tcm.py`（Debug 写 ITCM 上板，阶段 B 用）、`sim/diag_itcm_write.py`（ITCM 写诊断，排查用）、`synth/sim/tb_debug_test.sv`（T016 阶段 A 仿真 tb，ALL PASS）
+
+### 调试脚本状态（2026-08-20）
+| 脚本 | 状态 | 说明 |
+|---|---|---|
+| `sim/load_elf_uart.py` | 待修复 | 依赖 host W 写 ITCM（上板连续命令卡，需先修 host_cmd_fsm） |
+| `sim/debug_write_tcm.py` | 待验证 | 上板 Debug 写未生效（阶段 B 阻塞） |
+| `sim/diag_itcm_write.py` | 诊断用 | 上板 host 连续命令卡根因排查 |
+| `synth/sim/tb_debug_test.sv` | ✅ 阶段 A 通过 | Debug 写 TCM 仿真验证 |
 
 ## T015：UART host 通路验证
 

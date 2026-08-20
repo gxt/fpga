@@ -33,6 +33,8 @@
 
 **原则**：git 只能同步 commit（不能同步未提交改动）；主仓库只从 201 push/pull（202 不 push）；Vivado 产物与 git 并行不冲突。
 
+**脚本工作流**：上板/仿真脚本在**机器201 编写**（`synth/sim/`、`sim/` 下）→ git 提交推送 → **机器202 `git pull` 执行**（xsim 等 Vivado 任务）；上板脚本机器201 本地执行（`sg dialout` 访问串口）。
+
 ### 任务启动前
 1. **201 git 仓库干净**：`git status` 无未提交改动；有则先提交并 `git push origin master`
 2. **同步给 202**：202 `cd ~/fpga && git pull origin master`（origin = 201 局域网）；submodule 如有更新 `git submodule update`
