@@ -144,6 +144,8 @@ module tb_debug_test;
         #100;
         rst_btn_n = 1'b1;
         #1000;
+        rx_byte_q.delete();   // 清空复位后可能残留的 host 初始发送
+        #500;
 
         $display("=== T016-A: Debug 抽象命令读写 TCM（Dbg 寄存器协议）===");
 
