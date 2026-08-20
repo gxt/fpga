@@ -154,9 +154,11 @@ module tb_debug_test;
         dbg_reg(32'h10, 32'h80000001, 1, got);
         $display("TB: 写 Dmcontrol haltreq");
         begin
-            logic [31:0] dms;
+            logic [31:0] dmc, dms;
+            dbg_reg(32'h10, 32'h0, 0, dmc);   // 读 Dmcontrol（haltreq 是否置位）
             dbg_reg(32'h11, 32'h0, 0, dms);   // 读 Dmstatus
-            $display("TB: Dmstatus=0x%08X (allhalted=%0d anyhalted=%0d)", dms, dms[31], dms[30]);
+            $display("TB: Dmcontrol=0x%08X (haltreq=%0d) Dmstatus=0x%08X (allhalted=%0d)",
+                     dmc, dmc[31], dms, dms[31]);
         end
         begin
             int found = 0;
@@ -199,7 +201,7 @@ module tb_debug_test;
     end
 
     initial begin
-        #5_000_000;
+        #50_000_000;   // 50ms 超时（halt/抽象命令可能需要更长时间）
         $display("TB: TIMEOUT");
         $finish;
     end
