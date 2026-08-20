@@ -4,7 +4,7 @@
 **执行环境**：机器201（板卡连接 + 串口终端）＋ 机器202（如需要产物）
 
 ## 接口规范
-- 输入：T012 已烧录的 T010 bitstream（core_mini_axi + UART 状态机 host）；T007 自定义测试程序 ELF（`sim/` 下 t007 程序）；RS232→USB 转串口线缆（J26）；串口终端工具（minicom/picocom）
+- 输入：T012 已烧录的 T010 修正后 bitstream（core_mini_axi + UART 状态机 host）；T007 自定义测试程序 ELF（`sim/` 下 t007 程序）；**子板 UART 通路（uart_rx=AV42 / uart_tx=AU42，1.8V，对应 J8 → CH341 `/dev/ttyUSB2`，硬件工程师 2026-08-20）**；串口终端工具（minicom/picocom）
 - 输出：UART host 命令通路验证记录（`W/R/S/Q/?` 协议）；加载 T007 ELF 到 TCM 并运行、回读结果与 RTL 仿真对照记录（`.tao/knowledge/board-notes.md`）
 - 约束：串口参数 115200 8N1（T010 `host_cmd_fsm` 协议）；host 侧方案已定 = UART 状态机主控（T010 决策，synth-notes.md）；不改 bitstream/上游代码
 
