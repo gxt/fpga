@@ -404,3 +404,11 @@ Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
 - **halt 生效确认**：抽象命令 cmderr=0 即证核已 halt（CSR_STATUS 未直接反映 halted，但 Debug 内部 halted 条件满足）
 - **Debug Access Memory 读限制**：data0 读回依赖 io.itcm.readData.valid 时序，实测返回 0；**加载/验证用途用 R 命令读回代替**（不受影响）
 - **上板加载路径结论**：host 写 CSR 0x30800 区（上板已验证 OK）→ Debug 写 ITCM（仿真证实）→ R 读回验证 = **上板 Debug 加载通道可行**，待 T016 阶段 B 实测
+
+### T016 阶段 B（上板）：Debug 写 ITCM 未生效（2026-08-20）
+
+- **实测**：UART 通路 OK；halt（Dmcontrol 写）后 Dmstatus/Abstractcs 读回失败/0；Debug 写 ITCM[0x0] 后 R 读回仍 0（复位后 ITCM 清零，Debug 写未生效）
+- **vs 仿真**：T016 阶段 A 仿真 Debug 写 ITCM/DTCM 全部成功——**上板与仿真差异**
+- **可能根因**：上板 Debug 请求 ready/时序（req_valid_pulse 需 io.debug.req.ready）；或 CoreAxiCSR Dbg 寄存器上板写路径未触发 Debug 模块；需波形级排查
+- **影响**：上板 Debug 加载通道当前不可用；T015 程序加载阻塞未解决
+- **候选**：① 波形级排查上板 Debug（时序/ready）；② 复用 host W 写 ITCM 的复位窗口（不稳定）；③ 程序放 DTCM 执行（需确认核取指）
