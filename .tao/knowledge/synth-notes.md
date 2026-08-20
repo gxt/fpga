@@ -426,3 +426,10 @@ Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
 - **核心问题**：host 连续命令后卡住（空/ERR 响应）——单命令（?/单字 W）稳定，连续写 DTCM/ITCM 首个即失败；写 CTRL=1（时钟开）后仍卡
 - **根因方向**：host_cmd_fsm 连续 AXI 写事务上板时序（XW_AW→XW_W→XW_B 状态机，疑 B 响应/握手上板异常）；或时钟门控对 host/ITCM 影响
 - **下一步**：RTL 分析 host_cmd_fsm 连续命令卡根因（本地可查）+ 仿真重现，避免上板盲试
+
+### host 写 ITCM 根因排查续（2026-08-20）：排除时钟门控假设
+
+- 查证：CoreAxi L102 `core = withClockAndReset(cg.io.clk_o)` ——**门控时钟仅供 core（SCore）**；ITCM/DTCM/AXI slave/fabricMux 用非门控时钟（`rst_sync.io.clk_o`，CoreAxi 主体 L56）
+- **排除**"复位后时钟门控致 host 写 ITCM SLVERR"假设（ITCM 非门控域）
+- 上板 host 连续命令卡疑**上板时序**（B 响应/握手上板异常），仿真（T010 tb）正常、难复现
+- 下一步候选：① 机器202 用上板配置（40MHz MMCM）仿真重现；② 上板 ILA 探针诊断 B 响应时序；③ 接受阻塞，转向其他任务
