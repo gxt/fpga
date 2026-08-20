@@ -45,7 +45,7 @@
 1. **202 提醒用户**（经 201 会话汇报）：变更清单 = git 受管改动（文件 + 类型）+ Vivado 产物（work/ 路径/大小）+ 待清理临时文件
 2. **用户决定是否提交**：确认哪些改动该提交；临时文件先清理
 3. **202 本地 commit**（用户确认后，提交信息按 git-commit 规范，可标注「（机器202）」区分执行机）
-4. **201 拉取**：201 `git pull fpga202 master`（`fpga202` remote 已配置 = `gxt@192.168.200.202:/home/gxt/fpga`；**201 发起 pull，202 不 push**）
+4. **201 拉取**：**先 `git fetch fpga202` 更新 remote-tracking 快照，再 `git pull fpga202 master`**（`fpga202` remote 已配置 = `gxt@192.168.200.202:/home/gxt/fpga`；**201 发起拉取，202 不 push**）——注意：`fpga202/master` 是本地快照，只在 fetch 时更新，202 有本地 commit 后必须 fetch 再 pull，避免快照过期
 5. **201 审查并推送**：确认提交内容后 `git push origin master`；202 后续 pull 保持同步
 
 ### 约束
