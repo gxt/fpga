@@ -192,9 +192,18 @@ module tb_debug_test;
         else begin $display("TB: FAIL DTCM[0x10000] 读回 = %08X exp 12345678", got); test_fail = 1; end
 
         // 4) Debug 读 ITCM（Access Memory 读）
-        debug_access_mem(32'h00000000, 32'h0, 0, got);
-        if (got == 32'hDEADBEEF) $display("TB: PASS Debug 读 ITCM[0x0] = %08X", got);
-        else begin $display("TB: FAIL Debug 读 ITCM[0x0] = %08X exp DEADBEEF", got); test_fail = 1; end
+        begin
+            logic [31:0] acs, d0;
+            dbg_reg(32'h5, 32'h00000000, 1, got);              // Data1 = 地址
+            dbg_reg(32'h17, 32'h02220000, 1, got);             // Command: AccessMem 读
+            debug_wait_busy();
+            #5000;
+            dbg_reg(32'h16, 32'h0, 0, acs);                    // Abstractcs（cmderr）
+            dbg_reg(32'h4, 32'h0, 0, d0);                      // Data0 = 结果
+            $display("TB: Debug 读 ITCM acs=0x%08X (cmderr=%0d) data0=0x%08X", acs, (acs>>8)&7, d0);
+            if (d0 == 32'hDEADBEEF) $display("TB: PASS Debug 读 ITCM[0x0] = %08X", d0);
+            else begin $display("TB: FAIL Debug 读 ITCM[0x0] = %08X exp DEADBEEF", d0); test_fail = 1; end
+        end
 
         if (test_fail) $display("=== T016-A: FAIL ===");
         else           $display("=== T016-A: ALL CHECKS PASSED ===");
