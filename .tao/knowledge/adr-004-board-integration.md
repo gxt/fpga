@@ -6,7 +6,7 @@
 
 ## 背景
 
-官方 `fpga/` 提供完整 SoC（`coralnpu_soc.sv`），集成大量外设：UART、SPI、I2C、ISP（ispyocto）、DDR4 控制器、显示（waveshare）、GPIO 等，目标硬件为 Google 内部 Nexus 板（xcvu13p），并依赖大量 lowrisc/opentitan IP 与 DPI 模型。完整 SoC 移植到本地新板卡工程量巨大、且许多外设与板卡无关。
+官方 `fpga/` 提供完整 SoC（`coralnpu_soc.sv`），集成大量外设：UART、SPI、I2C、ISP（ispyocto）、DDR4 控制器、显示（waveshare）、GPIO 等，目标硬件为 Google 内部 Nexus 板（xcvu13p），并依赖大量 lowrisc/opentitan IP 与 DPI 模型。完整 SoC 移植到机器201新板卡工程量巨大、且许多外设与板卡无关。
 
 另一方面，官方提供最小可集成配置：`core_mini_axi`（scalar-only 或 RVV 版本）——通过 **AXI slave** 写 TCM/CSR、通过 **AXI master** 访问外部内存，见 `doc/integration_guide.md`。这是 NPU 核心计算能力的最小集成面。
 
@@ -26,7 +26,7 @@
 
 ## 影响
 
-- 验证范围聚焦 NPU 计算正确性，工程量可控，适合本地板卡。
+- 验证范围聚焦 NPU 计算正确性，工程量可控，适合机器201板卡。
 - 与上游 SoC 验证存在差异（无外设、无 DDR），需在交付文档中说明差异与验证覆盖。
 - host 侧 AXI 桥接驱动是新增工作，方案依赖板卡能力，需在 T013 内细化。
 

@@ -1,7 +1,7 @@
 # T010: 目标器件适配与 bitstream 生成（core_mini_axi + AXI 桥接）
 
 ## 执行环境
-**执行环境**：远端（综合服务器）＋ 本地
+**执行环境**：机器202（机器202）＋ 机器201
 
 ## 接口规范
 - 输入：目标器件已确认 = `xc7v2000tflg1925-1`（S2C Dual Virtex-7 TAI Logic Module，见 `.tao/knowledge/board-notes.md`，无需再以 PDF 确认）；bazel 生成的 `core_mini_axi` SystemVerilog（`//hdl/chisel/src/coralnpu:core_mini_axi_cc_library`）；T008 执行拓扑；T009 官方器件（xcvu13p）综合基线报告
@@ -35,9 +35,9 @@
 - 修改 `synth/README.md`（T010 构建/仿真说明）、`.tao/knowledge/synth-notes.md`（T010 节：决策/设计/结果/坑）
 **验收结果**（逐条）：
 1. **验收 1 ✅**：目标器件 `xc7v2000tflg1925-1` 已在 board-notes.md 登记；Vivado part 数据库验证关键引脚有效（W4/W3=IO_L13P/N_T2_MRCC_37、AP31=IO_L13P_T2_MRCC_36、E20/F20=IO_L14N/P_T2_SRCC_40、K25/K28/J28 有效）
-2. **验收 2 ✅**：工程（非工程 batch 流程）器件 `xc7v2000tflg1925-1`，综合/实现 **0 ERROR**（日志 `synth/out/T010/T010-build3.log` 服务器 `~/fpga/work/T010/`）
+2. **验收 2 ✅**：工程（非工程 batch 流程）器件 `xc7v2000tflg1925-1`，综合/实现 **0 ERROR**（日志 `synth/out/T010/T010-build3.log` 机器202 `~/fpga/work/T010/`）
 3. **验收 3 ✅**：适配内容全部沉淀 `.tao/knowledge/synth-notes.md` T010 节 —— host 方案决策（UART 状态机主控，对比表）、AXI 桥接顶层设计（文件/接口/s_axi 通道对齐事实）、引脚约束（XDC 表）、时钟方案（MMCME2_BASE 原语，无新 IP）、器件切换
-4. **验收 4 ✅**：bitstream 生成 —— `.bit` 55917279B（md5 4a588df3...）/ `.bin` 55917152B（md5 96c04058...），本地 `synth/out/T010/`、服务器 `~/fpga/work/T010/`；**critical warning = 0 条**；287 条非 critical 警告按类记录共 9 类：8-7129 无负载端口×100、8-7137 fpnew set/reset 同优先级×92、8-6014 未用寄存器×42、8-3917 常量驱动端口×37、8-11065 参数转 localparam×7、**8-6430×4（ITCM/DTCM BRAM 读写碰撞，firtool 生成 SRAM 属性 `rw_addr_collision` 未置）**、8-3936×2（未连接寄存器裁剪）、**8-3848×2（control_mvp 无驱动网络）**、**8-327×1（en_latch_reg 锁存器推断，synth 报告伴随 1 条 combinational latch loop）**；8-6430/8-3848/8-327 三类需按功能影响判定（见 synth-notes.md T010 节处置结论），其余为良性优化类
+4. **验收 4 ✅**：bitstream 生成 —— `.bit` 55917279B（md5 4a588df3...）/ `.bin` 55917152B（md5 96c04058...），机器201 `synth/out/T010/`、机器202 `~/fpga/work/T010/`；**critical warning = 0 条**；287 条非 critical 警告按类记录共 9 类：8-7129 无负载端口×100、8-7137 fpnew set/reset 同优先级×92、8-6014 未用寄存器×42、8-3917 常量驱动端口×37、8-11065 参数转 localparam×7、**8-6430×4（ITCM/DTCM BRAM 读写碰撞，firtool 生成 SRAM 属性 `rw_addr_collision` 未置）**、8-3936×2（未连接寄存器裁剪）、**8-3848×2（control_mvp 无驱动网络）**、**8-327×1（en_latch_reg 锁存器推断，synth 报告伴随 1 条 combinational latch loop）**；8-6430/8-3848/8-327 三类需按功能影响判定（见 synth-notes.md T010 节处置结论），其余为良性优化类
 5. **验收 5 ✅**：资源/时序报告齐全（utilization/timing_synth·place·route、route_status、clock_utilization、drc_route）；资源对比表（xc7v2000t vs T009 xcvu13p）已写入 synth-notes.md（LUT 3.56% vs 30.32% 等）
 6. **验收 6 ✅**：单会话内完成全部阶段（Stage 0-7 见"新发现/坑"），阶段产物可追溯（xsim 日志/各版 build 日志/报告均在 `.tao/logs/` 与 `synth/out/T010/`）
 **新发现/坑**（详见 synth-notes.md T010 节）：
@@ -78,18 +78,18 @@
 
 **3. 防造假确认**
 - xsim 全链路日志真实留存 `.tao/logs/T010-sim-tb_top.log`（"ALL CHECKS PASSED"）；负例（X123→ERR）通过说明错误路径真实。
-- 服务器 build3 日志/报告已拉回本地 `synth/out/T010/`；bitstream md5 已记录（4a588df3... / 96c04058...）；bit 头含 `top_coralnpu` 设计名可验证。
+- 机器202 build3 日志/报告已拉回机器201 `synth/out/T010/`；bitstream md5 已记录（4a588df3... / 96c04058...）；bit 头含 `top_coralnpu` 设计名可验证。
 - 资源/时序数据均取自 `utilization_route.rpt` / `timing_route.rpt` 实际报告。
 
-**自审结论**：8 项 finding 中 6 项已修并复验（xsim 回归全通过）、2 项确认为无问题。所有修改经 xsim 全链路验证后才上服务器构建；最终构建 0 ERROR / 0 CRITICAL WARNING / setup 收敛 / hold 85ps 可忽略。无未修阻断项，状态可标「待验收」。
+**自审结论**：8 项 finding 中 6 项已修并复验（xsim 回归全通过）、2 项确认为无问题。所有修改经 xsim 全链路验证后才上机器202构建；最终构建 0 ERROR / 0 CRITICAL WARNING / setup 收敛 / hold 85ps 可忽略。无未修阻断项，状态可标「待验收」。
 
 #### 第 1 轮 reviewer 验收
 
-（独立验收：代码逐文件 review + 产物重跑核验 + 服务器核验 + xsim 独立重跑。日志：`.tao/logs/T010-review-verify.log`、`.tao/logs/T010-review-sim-tb_top.log`）
+（独立验收：代码逐文件 review + 产物重跑核验 + 机器202核验 + xsim 独立重跑。日志：`.tao/logs/T010-review-verify.log`、`.tao/logs/T010-review-sim-tb_top.log`）
 
 **1. 代码 review（逐文件）**
 
-- `top_coralnpu.sv`：时钟树（IBUFDS→MMCME2_BASE→BUFG，100MHz×12/1/30=40MHz，CLKIN1_PERIOD=10.0 与 XDC period 一致）正确；复位异步置位/同步释放正确；CoreMiniAxi 实例化接口与 CoreMiniAxi.sv 实际端口逐一对上（已从服务器源码核对 io_axi_slave_*/io_axi_master_*/io_halted/io_fault/io_boot_addr 方向与位宽）。✅ 发现：`CLK_IN_HZ` 参数未在代码中引用（仅注释说明，MMCM 参数硬编码），属死参数，非功能问题。
+- `top_coralnpu.sv`：时钟树（IBUFDS→MMCME2_BASE→BUFG，100MHz×12/1/30=40MHz，CLKIN1_PERIOD=10.0 与 XDC period 一致）正确；复位异步置位/同步释放正确；CoreMiniAxi 实例化接口与 CoreMiniAxi.sv 实际端口逐一对上（已从机器202源码核对 io_axi_slave_*/io_axi_master_*/io_halted/io_fault/io_boot_addr 方向与位宽）。✅ 发现：`CLK_IN_HZ` 参数未在代码中引用（仅注释说明，MMCM 参数硬编码），属死参数，非功能问题。
 - `host_cmd_fsm.sv`：AXI 单拍（AWLEN=0/size=2/INCR/id=0）；输出全部寄存器化 + 握手后清除（`if (s_awvalid_r&&s_awready) s_awvalid_r<=0`）——逐一推演 AW/W/B/AR/R 五通道，无双握手；`tx_req` 单 always 块驱动（F2 已修）。字节通道对齐 `{96'd0,cmd_data}<<(w_lane*8)`+`strb=0xF<<w_lane` 与 core 实际语义匹配（见下）。读回提取 `rd_lane_word` 按 addr[3:0] 取通道正确。✅ 发现：自审 F7 表述不准确——"R 命令 count=0 时无数据行只回 OK\n"与代码不符，实际 count=0 会先做一次读并打印一行数据再回 OK（协议文档已限定 count 1..16，不构成功能缺陷，但记录应更正）。
 - `uart_rx.sv`：16x 过采样、osr_cnt==8 中点采样、LSB 先收（`shreg<={rx_in,shreg[7:1]}` 后 rx_data=shreg 位序正确）、帧错误放弃、stop 位校验正确。⚠️ 风险：40MHz/115200 时 DIV=21，实际采样率 119047.6，**偏差 +3.3%**（8N1 临界但可工作，短帧内漂移 <0.5bit）；TB 用 781250 整除避开了该偏差，未覆盖真实 115200 场景。T012/T013 上板前建议确认。
 - `uart_tx.sv`：DIV=CLK/BAUD；起始位/数据 LSB 先发/stop 位（bit_idx==9 时 shreg[0] 已为 1）推演正确；`tx_out=busy?shreg[0]:1` 空闲高。✅
@@ -97,16 +97,16 @@
 - `top_coralnpu.xdc`：8 引脚约束齐全（W4/W3=LVDS、AP31=LVCMOS18+PULLUP、E20/F20=LVCMOS18、K25/K28/J28=LVCMOS15）；create_clock 10ns 与 MMCM 参数一致。✅（引脚在 part 数据库有效：已由 0 ERROR 综合间接验证）
 - `build_top.tcl` / `resume_top.tcl`：非工程 batch 流程正确；参数校验、报告/checkpoint/bitstream 输出齐全；`file mkdir` 无 `-force`（F6 已修；build1 遗留的 `synth/out/T010/-force` 空目录仍在磁盘，不影响）。✅
 - `tb_top.sv`：程序编码核对正确（0x02A00293 addi、0x00010137 lui、0x00512023 sw、0x08000073 mpause）；TB 接收器采样点正确；负例（X123→ERR）覆盖错误路径。测试覆盖 W/S/Q/R/?/ERR/LED，未覆盖多字 R（count>1）与 SLVERR 路径，但对本任务验收足够。✅
-- **关键设计假设独立验证**（CoreMiniAxi.sv 源码，服务器）：SRAM 写入 `io_sram_address = addr[12:4]`、`io_sram_writeData_i = wdata[i*8+:8]`（固定通道不旋转）、`io_sram_mask_i = wstrb[i]`；CSR 写入 `offset0→[31:0]、offset4→[63:32]`。"不做地址旋转、AXI master 需自行对齐"的结论与 host_cmd_fsm 实现一致。✅
+- **关键设计假设独立验证**（CoreMiniAxi.sv 源码，机器202）：SRAM 写入 `io_sram_address = addr[12:4]`、`io_sram_writeData_i = wdata[i*8+:8]`（固定通道不旋转）、`io_sram_mask_i = wstrb[i]`；CSR 写入 `offset0→[31:0]、offset4→[63:32]`。"不做地址旋转、AXI master 需自行对齐"的结论与 host_cmd_fsm 实现一致。✅
 
 **2. 重跑记录（真实输出/退出码）**
 
-- `md5sum` 本地/服务器/完成区三者一致：bit=`4a588df37d4179a7b8c3b9d2007e0c69`（55917279B）、bin=`96c04058f7b49ab4e8a166db70079ccc`（55917152B）；服务器 `~/fpga/work/T010/` 文件齐全且 T010-build3.log md5 与本地一致（143cca6d...）。✅
-- **xsim 独立重跑**（本机 Vivado 2025.1，/tmp/opencode/T010-review/，从服务器拉取 CoreMiniAxi.sv，md5 与本地 bazel-out 产物一致 c21c6a15...）：xvlog/xelab 全通过，`xsim tb_snap -runall` → `TB: *** ALL CHECKS PASSED ***`、`$finish called at time : 2027390 ns`，退出码 0。与原始 `.tao/logs/T010-sim-tb_top.log` 逐字一致（HALTED=0x00000001、DTCM=0x2A、HELP、ERR）。✅ 功能验证真实可复现。
+- `md5sum` 机器201/机器202/完成区三者一致：bit=`4a588df37d4179a7b8c3b9d2007e0c69`（55917279B）、bin=`96c04058f7b49ab4e8a166db70079ccc`（55917152B）；机器202 `~/fpga/work/T010/` 文件齐全且 T010-build3.log md5 与机器201一致（143cca6d...）。✅
+- **xsim 独立重跑**（机器201 Vivado 2025.1，/tmp/opencode/T010-review/，从机器202拉取 CoreMiniAxi.sv，md5 与机器201 bazel-out 产物一致 c21c6a15...）：xvlog/xelab 全通过，`xsim tb_snap -runall` → `TB: *** ALL CHECKS PASSED ***`、`$finish called at time : 2027390 ns`，退出码 0。与原始 `.tao/logs/T010-sim-tb_top.log` 逐字一致（HALTED=0x00000001、DTCM=0x2A、HELP、ERR）。✅ 功能验证真实可复现。
 - `timing_route.rpt`：WNS=0.253 / TNS=0.000 / 0 setup 违例；WHS=-0.085 / THS=-0.257 / 7 hold 违例端点；PW=0。与完成区一致。✅（注意报告含 "Timing constraints are not met"，由 hold 引起，已在完成区披露）
-- `route_status.rpt`（本地=服务器）：routable 50,507 / fully routed 50,507 / 0 routing errors。**与完成区 "50432/50432" 不符**。❌
+- `route_status.rpt`（机器201=机器202）：routable 50,507 / fully routed 50,507 / 0 routing errors。**与完成区 "50432/50432" 不符**。❌
 - `utilization_route.rpt`：Slice LUTs=**43,446**（3.56%）、LUT as Logic=43,164、Registers=9,296、RAMB36E1=10、DSP48E1=6、IOB=8、MMCME2_ADV=1。**与 synth-notes 资源表 "43,439" 不符**（synth 报告为 43,911，place/route 均为 43,446）。❌
-- `T010-build3.log`（本地=服务器）：`synth_design completed successfully`、elapsed=00:12:54（与完成区一致）✅、`0 Errors / 0 Critical Warnings` ✅、**287 Warnings 分类**：8-7129×100、8-7137×92、8-6014×42、8-3917×37 与完成区一致，**但完成区"其余为优化 INFO 类"不实**——另有 8-11065×7（参数变 localparam）、**8-6430×4（ITCM/DTCM BRAM 读写地址冲突警告）**、8-3936×2（未连接寄存器裁剪）、**8-3848×2（control_mvp 无驱动网络）**、**8-327×1（en_latch_reg 锁存器推断，synth 报告另有 "1 combinational latch loop"）**，共 16 条非 INFO 警告未分类未处置。❌
+- `T010-build3.log`（机器201=机器202）：`synth_design completed successfully`、elapsed=00:12:54（与完成区一致）✅、`0 Errors / 0 Critical Warnings` ✅、**287 Warnings 分类**：8-7129×100、8-7137×92、8-6014×42、8-3917×37 与完成区一致，**但完成区"其余为优化 INFO 类"不实**——另有 8-11065×7（参数变 localparam）、**8-6430×4（ITCM/DTCM BRAM 读写地址冲突警告）**、8-3936×2（未连接寄存器裁剪）、**8-3848×2（control_mvp 无驱动网络）**、**8-327×1（en_latch_reg 锁存器推断，synth 报告另有 "1 combinational latch loop"）**，共 16 条非 INFO 警告未分类未处置。❌
 - `drc_route.rpt`：0 Errors；45 checks 全为 Warning 级（CFGBVS-1/DPIP-1/DPOP-1/2/PDRC-153/REQP-1839 等）。✅
 - `git status`：coralnpu 零改动（0 行）；`synth/rtl`、`synth/sim`、`synth/tcl`、`synth/xdc` 为新增（未跟踪）；`synth/out/` 已被 .gitignore 排除；未 commit 与完成区一致。✅
 - bit 头：`>top_coralnpu;UserID=0XFFFFFFFF;Version=2025.1;SW_CRC=2b8256d9` + `7v2000tflg1925` + `2026/08/18 18:21:15`，与 build3 完成时间吻合。✅
@@ -131,11 +131,11 @@
 - R5（建议）：axi_master_stub 写 FSM W-先于-AW 时 w_last_seen 被覆盖（防挂死桩存在盲区，与自审"鲁棒"宣称不符）；至少修正记录表述，若改 RTL 需重构建并重跑 xsim。
 - R6（建议，T012/T013 关注）：uart_rx 在 40MHz/115200 下 DIV=21、波特率偏差 +3.3%（临界），建议记录为已知风险。
 
-验证了：代码逻辑（AXI 通道、UART、FSM 逐一推演 + core 源码语义核对）、xsim 全链路独立重跑、bit/bin md5×2 端、build3 日志全部数字、四份 rpt、bit 头、git 状态、服务器产物。采信：board-notes 的引脚来源（未逐页核对 Dual V7 手册 PDF）、服务器构建过程本身（未重跑综合，按任务约定仅核验产物与日志）。
+验证了：代码逻辑（AXI 通道、UART、FSM 逐一推演 + core 源码语义核对）、xsim 全链路独立重跑、bit/bin md5×2 端、build3 日志全部数字、四份 rpt、bit 头、git 状态、机器202产物。采信：board-notes 的引脚来源（未逐页核对 Dual V7 手册 PDF）、机器202构建过程本身（未重跑综合，按任务约定仅核验产物与日志）。
 
 #### 第 2 轮 reviewer 验收
 
-（返工复验：4 项记录层修正逐项核对 + 整体抽查。日志 `.tao/logs/T010-review2-*.log` 由本机命令输出留存）
+（返工复验：4 项记录层修正逐项核对 + 整体抽查。日志 `.tao/logs/T010-review2-*.log` 由机器201命令输出留存）
 
 **1. 重跑记录（真实输出/退出码）**
 

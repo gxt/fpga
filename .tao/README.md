@@ -4,7 +4,7 @@
 
 ## 机器分工（2026-08-20 调整）
 
-- **201**（本机 fpga201，192.168.200.201）：fpga 仓库维护、opencode 运行、**板卡烧录与连接**（Vivado Hardware Manager）。**非特殊情况不调用 Vivado**（内存受限 11G），特殊情况需咨询用户确认。
+- **201**（机器201 fpga201，192.168.200.201）：fpga 仓库维护、opencode 运行、**板卡烧录与连接**（Vivado Hardware Manager）。**非特殊情况不调用 Vivado**（内存受限 11G），特殊情况需咨询用户确认。
 - **202**（zzx-NF5280，192.168.200.202）：**所有 Vivado 任务**——仿真（xsim）、综合、实现、bitstream。fpga 主仓库 git 经 201 局域网同步（**主仓库仅限 201 push/pull**；202 外网已通，coralnpu submodule 及软件走外网）；按任务建子目录并尽可能创建 `.xpr` 工程；**sudo 命令必须经用户允许**。
 - 详见 `.tao/knowledge/registry.md`（路由）与 `synth-server.md`（拓扑）。
 
@@ -31,8 +31,8 @@
 
 coralnpu 以 git submodule 引入，作为首要复现对象。
 
-- **远端**：`origin` 指向**自己的 fork**（`https://github.com/gxt/coralnpu.git`），官方仓库为 `upstream`（`https://github.com/google-coral/coralnpu.git`），仅用于拉取上游更新。
-- **为什么**：官方仓库无写权限；子模块修改必须推送到自己的 fork，否则 `git submodule update` 会覆盖丢失本地改动。
+- **机器202**：`origin` 指向**自己的 fork**（`https://github.com/gxt/coralnpu.git`），官方仓库为 `upstream`（`https://github.com/google-coral/coralnpu.git`），仅用于拉取上游更新。
+- **为什么**：官方仓库无写权限；子模块修改必须推送到自己的 fork，否则 `git submodule update` 会覆盖丢失机器201改动。
 - **修改流程**：
   1. 在 `coralnpu/` 内修改并 `git commit`
   2. `git push origin <branch>`（推送到自己的 fork）
@@ -55,9 +55,9 @@ coralnpu 以 git submodule 引入，作为首要复现对象。
 - **综合**：待定（优先兼容 Vivado，目标器件 Xilinx/AMD）。
 - 决定后更新本文件，并在 `.tao/knowledge/` 沉淀使用记录。
 
-## 本机环境约定
+## 机器201环境约定
 
-本机/账号级环境约定（可执行文件路径、临时目录、用户名动态化）已移至全局 opencode 配置 `~/.config/opencode/instructions/env.md`，跨项目生效；本文件仅保留 bazelisk 版本选择说明。
+机器201/账号级环境约定（可执行文件路径、临时目录、用户名动态化）已移至全局 opencode 配置 `~/.config/opencode/instructions/env.md`，跨项目生效；本文件仅保留 bazelisk 版本选择说明。
 
 - **bazelisk 版本选择**：优先级（高→低）`USE_BAZEL_VERSION` 环境变量 > `~/.bazeliskrc` > workspace 根 `.bazelversion` > latest。已建 `~/.bazeliskrc`（`USE_BAZEL_VERSION=8.6.0`）全局兜底：任意目录 `bazel` 默认 8.6.0（已缓存，不触发下载），**不再自动下载最新版**。注意：bazeliskrc 优先于 workspace 内 `.bazelversion`，未来某 workspace 需其它版本时用环境变量临时覆盖；主仓库根不再维护 `.bazelversion`/`MODULE.bazel`（coralnpu/ 的 `.bazelversion` 声明 8.6.0）。
 

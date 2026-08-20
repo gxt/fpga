@@ -1,7 +1,7 @@
 # T002: 跑通官方 Cocotb 快速开始（core_mini_axi_sim_cocotb）
 
 ## 执行环境
-**执行环境**：本地
+**执行环境**：机器201
 
 ## 接口规范
 - 输入：coralnpu 源码（HEAD d93b5550）；bazel 8.6.0（T001 完成）
@@ -15,7 +15,7 @@
 1. 按所选方案执行：方案 A 跑完整 meta target（20 case），方案 B 跑单个快速 case——退出码 0，运行日志出现 Cocotb 通过标志（如 `Passed` / 0 failures / `All tests passed`）
 2. 记录执行方案选择（A/B）与对应运行日志片段；若选方案 B，明确说明剩余 case 的覆盖计划（由 T006 子集执行）
 3. 记录关键依赖下载清单（chisel、opentitan、riscv 工具链、hermetic verilator 版本等）与磁盘占用到 `.tao/knowledge/toolchain-notes.md`
-4. 无对 coralnpu/ 的本地修改（`git -C coralnpu status` 干净）
+4. 无对 coralnpu/ 的机器201修改（`git -C coralnpu status` 干净）
 
 ## 完成区
 
@@ -36,7 +36,7 @@
    - `:363` `PASSED in 45.8s`；`:365` `Executed 1 out of 1 test: 1 test passes.`；bash 捕获 EXIT_CODE=0
 2. 方案选择记录（B）+ 日志片段：见「方案选择」节与上；剩余 19 case（含 4 个 large）由 T006 子集执行覆盖
 3. 关键依赖下载清单与磁盘占用已写入 `.tao/knowledge/toolchain-notes.md`：verilator hermetic 5.050/5.051-devel（commit b97df914）、cocotb 2.0.0、chisel 7.0.0-RC1、llvm-firtool 1.114.0、RISC-V 工具链 toolchain_coralnpu_v2-2026-06-29（riscv64-unknown-elf-gcc 16.1.0）、riscv-tests/opentitan/RVVI/mpact-riscv/riscv-isa-sim/uvm-verilator/srecord/rules_hdl；bazel 缓存 8.9G + bazelisk 107M
-4. `git -C /home/gxt/fpga/coralnpu status`：干净，无本地修改（HEAD d93b5550 与接口规范一致）
+4. `git -C /home/gxt/fpga/coralnpu status`：干净，无机器201修改（HEAD d93b5550 与接口规范一致）
 **新发现/坑**：
 - `bazel test` 默认命中 action cache，只显示 `(cached) PASSED`，看不到 cocotb 详细输出；留证需 `--nocache_test_results --test_output=all`（真实重跑约 46s）
 - cocotb 输出含 `Cannot read termcap database`、`COCOTB_TESTCASE is deprecated` 等噪音，不影响通过
@@ -98,12 +98,12 @@
 
 **发现的问题**：
 
-- **事实错误（需修正）**：toolchain-notes.md 第 49 行 rules_hdl 行写"挂 **17** 个 coralnpu 本地 patch"，但 `rules/repos.bzl` 第 139-163 行实际引用 **0001-0019 共 19 个 patch**（`grep -c "third_party/rules_hdl:00"` = 19，磁盘 `third_party/rules_hdl/*.patch` 亦 19 个）。"17"与源码声明不符。
+- **事实错误（需修正）**：toolchain-notes.md 第 49 行 rules_hdl 行写"挂 **17** 个 coralnpu 机器201 patch"，但 `rules/repos.bzl` 第 139-163 行实际引用 **0001-0019 共 19 个 patch**（`grep -c "third_party/rules_hdl:00"` = 19，磁盘 `third_party/rules_hdl/*.patch` 亦 19 个）。"17"与源码声明不符。
 - 备注（非阻塞）：完成区"缓存命中重跑 33.5s"为 8/16 旧缓存记录；今日 reviewer 重跑缓存命中显示 45.8s，因工程师 8/17 强制真实重跑（45.8s）已更新 action cache，属正常现象，不构成伪造。
 
 **判决**：**Needs Revision**
 
-- 具体整改项：将 `.tao/knowledge/toolchain-notes.md` 第 49 行 "挂 17 个 coralnpu 本地 patch" 修正为 "挂 **19** 个"（repos.bzl 实际引用 0001-0019）；或若坚持 17 需说明剔除依据（0007 skywater / 0013 VCS / 0019 注入修复等），但按 repos.bzl 声明数应为 19。
+- 具体整改项：将 `.tao/knowledge/toolchain-notes.md` 第 49 行 "挂 17 个 coralnpu 机器201 patch" 修正为 "挂 **19** 个"（repos.bzl 实际引用 0001-0019）；或若坚持 17 需说明剔除依据（0007 skywater / 0013 VCS / 0019 注入修复等），但按 repos.bzl 声明数应为 19。
 - 其余验收项（测试通过、方案记录、T006 指向、coralnpu 零改动、依赖清单抽查一致）均已独立重跑验证为真实，修正后即可 Accepted。
 
 #### 第 2 轮 reviewer 验收
@@ -116,7 +116,7 @@
 | --- | --- | --- | --- |
 | 1 | 缺陷复验：`grep -c "third_party/rules_hdl:00" /home/gxt/fpga/coralnpu/rules/repos.bzl` | `19`（引用 0001-0019，repos.bzl 行 140-157 + 162） | 0 ✅ |
 | 2 | 缺陷复验：`ls /home/gxt/fpga/coralnpu/third_party/rules_hdl/*.patch \| wc -l` | `19` | 0 ✅ |
-| 3 | 缺陷复验：`grep -n "rules_hdl" /home/gxt/fpga/.tao/knowledge/toolchain-notes.md` 第 49 行 | `挂 19 个 coralnpu 本地 patch（cocotb/verilator 相关，rules/repos.bzl 引用 0001-0019）` | 0 ✅ |
+| 3 | 缺陷复验：`grep -n "rules_hdl" /home/gxt/fpga/.tao/knowledge/toolchain-notes.md` 第 49 行 | `挂 19 个 coralnpu 机器201 patch（cocotb/verilator 相关，rules/repos.bzl 引用 0001-0019）` | 0 ✅ |
 | 4 | 抽查：`bazel test //tests/cocotb:core_mini_axi_sim_cocotb_core_mini_axi_csr_test`（缓存命中） | `(cached) PASSED in 36.1s`；`Executed 0 out of 1 test: 1 test passes.`；`INFO: Build completed successfully, 1 total action` | 0 ✅ |
 | 5 | 抽查：`git -C /home/gxt/fpga/coralnpu status` | `无文件要提交，干净的工作区`；HEAD `d93b5550` 与接口规范一致 | 0 ✅ |
 

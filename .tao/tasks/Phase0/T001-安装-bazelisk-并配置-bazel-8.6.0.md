@@ -1,7 +1,7 @@
 # T001: 安装 bazelisk 并配置 bazel 8.6.0
 
 ## 执行环境
-**执行环境**：本地
+**执行环境**：机器201
 
 ## 接口规范
 - 输入：系统已装 bazel 3.5.1（过旧，无法构建 coralnpu）；coralnpu `.bazelversion` 声明 8.6.0；网络可用（已确认 github 可达）；前置检查项：python3 版本（记录实际版本）、系统 `srec_cat` 是否存在（coralnpu 通过 bazel 拉取 `@srecord` 源码自行构建，系统 srec_cat 非硬依赖；检查结果仅为记录，缺失不阻塞，但须确认 `@srecord` 路径可用）
@@ -29,7 +29,7 @@
 4. 前置检查已记录：python3 = `3.10.12`；系统 `srec_cat` 不存在（非硬依赖，`@srecord` 由 bazel 拉取源码构建，缺失不阻塞）；`~/.local/bin` 已在 PATH，全局裸 `bazel` 命令 = `/home/gxt/.local/bin/bazel` → bazelisk
 5. 安装方式与版本已记录到 `.tao/knowledge/toolchain-notes.md`；bazelisk 安装非仓库代码改动，未写入 changelog.md
 **新发现/坑**：
-- 环境与任务文件描述有出入：系统当前**无** `/usr/bin/bazel`（任务所述 bazel 3.5.1 已不存在，PATH 亦无 bazel），本机实际没有任何系统 bazel；不影响任务目标，已按"全新安装 bazelisk"处理
+- 环境与任务文件描述有出入：系统当前**无** `/usr/bin/bazel`（任务所述 bazel 3.5.1 已不存在，PATH 亦无 bazel），机器201实际没有任何系统 bazel；不影响任务目标，已按"全新安装 bazelisk"处理
 - 安装目录经用户指示由任务原定的 `~/bin` 改为 `~/.local/bin`（已在 PATH，无需额外配置）
 - bazelisk 首次运行自动下载 bazel 8.6.0 到 `~/.cache/bazelisk/`，约 10s 完成且通过官方签名校验
 - `bazelisk version` 与 `bazel help` 并发执行会争用同一 output base lock（后者等待前者），属正常现象，非错误
@@ -82,6 +82,6 @@
 - bazelisk 安装到用户目录：✅
 - coralnpu/ 内文件零改动：coralnpu 独立 git 仓库 `git status --short` 为空 ✅
 - 安装 bazelisk 不写入 changelog.md：changelog.md 无改动（git status 无此项）✅
-- 完成区声明"安装目录由 `~/bin` 改为 `~/.local/bin`"有据可查（.tao/README.md「本机环境约定」记录 `~/.local/bin` 为已 PATH 的本机约定），不构成验收阻断
+- 完成区声明"安装目录由 `~/bin` 改为 `~/.local/bin`"有据可查（.tao/README.md「机器201环境约定」记录 `~/.local/bin` 为已 PATH 的机器201约定），不构成验收阻断
 
 **判决**：**Accepted**。验收标准 5/5 均在审查者独立重跑下通过，硬约束无违反。已通过版本 `bazel --version`/`bazelisk version`/`bazel help` 全程未触发下载，环境事实与记录一致。主会话可将任务状态改为 `已验证`。

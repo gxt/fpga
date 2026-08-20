@@ -14,7 +14,7 @@ coralnpu 官方提供三套验证体系：
 
 环境事实：
 
-- 本机无 VCS、无 license，UVM 无法运行。
+- 机器201无 VCS、无 license，UVM 无法运行。
 - 系统 verilator 为 4.038（2020-07，过旧），但 bazel 通过 `@rules_hdl//verilator` 使用 **hermetic verilator**（固定版本随依赖拉取），不依赖系统 verilator。
 - 已确认：iverilog 未安装；yosys/nextpnr 未安装（Xilinx 器件综合不需要开源链）。
 

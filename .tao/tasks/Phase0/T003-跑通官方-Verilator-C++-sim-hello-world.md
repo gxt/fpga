@@ -1,7 +1,7 @@
 # T003: 跑通官方 Verilator C++ sim（hello world add floats）
 
 ## 执行环境
-**执行环境**：本地
+**执行环境**：机器201
 
 ## 接口规范
 - 输入：coralnpu 源码；bazel 8.6.0（T001 完成）

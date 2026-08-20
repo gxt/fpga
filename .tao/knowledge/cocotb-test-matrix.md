@@ -77,17 +77,17 @@
 
 | 类别 | 排除原因 |
 | --- | --- |
-| `vcs_*`（如 `vcs_core_mini_axi_sim_cocotb_*`、`vcs_flow_smoke_test_*` 等全部 227 个） | 依赖 Synopsys VCS（专有许可证），本机未安装。coco_tb.bzl 中 vcs 分支仅在有 VCS 时可用。 |
+| `vcs_*`（如 `vcs_core_mini_axi_sim_cocotb_*`、`vcs_flow_smoke_test_*` 等全部 227 个） | 依赖 Synopsys VCS（专有许可证），机器201未安装。coco_tb.bzl 中 vcs 分支仅在有 VCS 时可用。 |
 | meta target（`core_mini_axi_sim_cocotb`、`rvv_core_mini_axi_sim_cocotb`、`rvv_load_store_test`、`rvv_arithmetic_cocotb_test`、`rvv_ml_ops_cocotb_test`、`rvv_highmem_tests*`、`rvv_itcm512kb_dtcm512kb_tests*`、`*_slow` 等） | 单个 meta target 串行跑整套 suite（enormous），等价于逐个跑其 testcase target；本任务已按 testcase 单测逐个覆盖，meta 不另跑。 |
 | `verilator_uvm_regression_*`（26 个） | **非 cocotb 流程**：`rules/coralnpu_v2.bzl` 的 `verilator_batch_uvm_test`，使用 `//tests/uvm:uvm_sim_verilator` + spike cosim（UVM 回归），不在本任务"cocotb 核心子集"范围内。 |
 | `rvv_load_store_test_*`（55 个单测）、`rvv_ml_ops_cocotb_test_*`（6 个单测）、`rvv_highmem_tests_*`（7 个单测，另有 meta 1 个）、`rvv_itcm512kb_dtcm512kb_tests_*`（3 个单测，另有 meta 1 个）、`rvv_bf16_ops_cocotb_test`/`zvfbf_cocotb_test`/`zfbfmin_cocotb_test`（各 2 个单测） | 超出核心子集（附加 RVV 覆盖套件）；核心 RVV 覆盖已由 B 组 5 个 target 建立。后续 T007 可按需补充。 |
 | `rvv_core_mini_axi_sim_cocotb_*` 未跑的其余 case（40 个，共 43 单测已跑 3）与 `rvv_core_mini_axi_debug_cocotb_*`（12 个） | 与已跑 case 共用同一 test_module（core_mini_axi_sim.py / core_mini_axi_debug.py）与 RvvCoreMiniAxi 模型，行为与 scalar 版一致；代表 case 已验证流程（B 组 + D 组）。 |
-| `core_mini_axi_debug_gdbserver`（scalar 及 RVV 对应版） | **确定性环境失败（实测超时）**：RISC-V gdb（工具链 `riscv64-unknown-elf-gdb`）硬依赖 `libmpfr.so.4`，本机仅有 `libmpfr.so.6`；`toolchain/wrappers/gdb` 的兼容方案（`ldconfig -p \| grep 'mpfr.so$'`）在本机 ldconfig 缓存中匹配不到未版本化 `libmpfr.so` 条目，导致 gdb 无法启动；pyocd gdbserver 线程常驻 → cocotb 测试挂起至 bazel 默认 medium 超时（300s）。**证据**：`ldd` 显示 `libmpfr.so.4 => not found`；直接运行 runfiles 内 wrapper 复现同一报错。修复需系统级安装 libmpfr4/libmpfr-dev（需 root，超出本任务范围，T007 可跟进）。**未重试**：根因确定性，无重试依据。 |
+| `core_mini_axi_debug_gdbserver`（scalar 及 RVV 对应版） | **确定性环境失败（实测超时）**：RISC-V gdb（工具链 `riscv64-unknown-elf-gdb`）硬依赖 `libmpfr.so.4`，机器201仅有 `libmpfr.so.6`；`toolchain/wrappers/gdb` 的兼容方案（`ldconfig -p \| grep 'mpfr.so$'`）在机器201 ldconfig 缓存中匹配不到未版本化 `libmpfr.so` 条目，导致 gdb 无法启动；pyocd gdbserver 线程常驻 → cocotb 测试挂起至 bazel 默认 medium 超时（300s）。**证据**：`ldd` 显示 `libmpfr.so.4 => not found`；直接运行 runfiles 内 wrapper 复现同一报错。修复需系统级安装 libmpfr4/libmpfr-dev（需 root，超出本任务范围，T007 可跟进）。**未重试**：根因确定性，无重试依据。 |
 
 ## 三、复现命令
 
 ```bash
-# 环境确认（本机 4 核 / 11Gi 总内存，available 偏低 → 串行）
+# 环境确认（机器201 4 核 / 11Gi 总内存，available 偏低 → 串行）
 nproc && free -h
 
 # 单个 case（先 scalar 后 RVV；首次跑 RVV 会先构建 RvvCoreMiniAxi 模型 ~6.4min）

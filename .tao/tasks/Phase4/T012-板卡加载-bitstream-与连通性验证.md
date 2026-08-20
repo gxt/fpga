@@ -1,10 +1,10 @@
 # T012: 板卡加载 bitstream 与连通性验证
 
 ## 执行环境
-**执行环境**：本地（本机直接连接板卡）
+**执行环境**：机器201（机器201直接连接板卡）
 
 ## 接口规范
-- 输入：T010 生成的 bitstream（core_mini_axi + AXI 桥接版）；板卡（本机连接）；Vivado Hardware Manager（本机 Vivado 辅助角色）或板卡厂商烧录工具
+- 输入：T010 生成的 bitstream（core_mini_axi + AXI 桥接版）；板卡（机器201连接）；Vivado Hardware Manager（机器201 Vivado 辅助角色）或板卡厂商烧录工具
 - 输出：bitstream 成功加载到板卡；器件识别、时钟/复位基本功能验证记录（`.tao/knowledge/board-notes.md`）
 - 约束：**板卡配置/复位机制以 `.tao/knowledge/board-notes.md` 为准**（S2C TAI LM：JTAG 走 J24 标准 Xilinx 14-pin；配置方式为 JTAG / USB（TAI Player）/ SD card / Ethernet，由 Spartan-6 控制器管理电源、时钟与配置；状态指示 LED1=F1_DONE、LED11=F2_DONE）；不使用官方 Nexus 专用配置机制；操作遵循板卡上电/复位流程并记录板卡配置（JTAG 链、时钟源、供电）
 

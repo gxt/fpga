@@ -2,7 +2,7 @@
 
 ## Bazel / Bazelisk
 
-### 安装方式（2026-08-16，本机）
+### 安装方式（2026-08-16，机器201）
 
 - **bazelisk**：`v1.29.0`（官方 release 预编译二进制）
   - 下载：`https://github.com/bazelbuild/bazelisk/releases/download/v1.29.0/bazelisk-linux-amd64`
@@ -10,7 +10,7 @@
   - `~/.local/bin/bazel` 为指向 bazelisk 的符号链接，全局 `bazel` 命令即 bazelisk
 - **bazel**：`8.6.0`（由 bazelisk 按 `.bazelversion` 自动下载，缓存于 `~/.cache/bazelisk/`）
   - coralnpu `.bazelversion` 声明 `8.6.0`
-- **前置检查**：python3 = `3.10.12`；系统 `srec_cat` **不存在**（coralnpu 通过 bazel 拉取 `@srecord` 源码自行构建，非硬依赖，缺失不阻塞）；系统无 `/usr/bin/bazel`（环境说明中所述 bazel 3.5.1 已不存在，本机现无系统 bazel）
+- **前置检查**：python3 = `3.10.12`；系统 `srec_cat` **不存在**（coralnpu 通过 bazel 拉取 `@srecord` 源码自行构建，非硬依赖，缺失不阻塞）；系统无 `/usr/bin/bazel`（环境说明中所述 bazel 3.5.1 已不存在，机器201现无系统 bazel）
 
 ### 使用方式
 
@@ -46,7 +46,7 @@
 | riscv-isa-sim | `fd72ee2d3e0d...` | spike |
 | uvm-verilator | `5a37baacfed0...` | 子模块（`//rules/repos.bzl`） |
 | srecord | bazel 拉取自建（替代系统 `srec_cat`） | 系统无 `srec_cat` 不阻塞 |
-| rules_hdl | `7a1ba0e8d229...`（bazel_rules_hdl） | 挂 19 个 coralnpu 本地 patch（cocotb/verilator 相关，`rules/repos.bzl` 引用 0001-0019） |
+| rules_hdl | `7a1ba0e8d229...`（bazel_rules_hdl） | 挂 19 个 coralnpu 机器201 patch（cocotb/verilator 相关，`rules/repos.bzl` 引用 0001-0019） |
 
 ### 磁盘占用（bazel 缓存）
 

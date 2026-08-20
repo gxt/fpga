@@ -11,27 +11,27 @@
 ### 结论摘要
 
 - **综合成功**：`synth_design completed successfully`，**0 errors / 1397 warnings**（官方统计行写 0 critical warnings；但日志实际存在 **8 条 `CRITICAL WARNING:`**：3× Synth 8-9873 模块重复定义覆盖 + 5× Common 17-55 XDC `set_property` 无对象；`runme.log` 显示结果未入 cache due to CRITICAL_WARNING——作为基线如实披露）
-- 产物路径（远端 `gxt@192.168.200.202`）：
+- 产物路径（机器202 `gxt@192.168.200.202`）：
   - 工程根：`~/fpga/work/T009/synth_only/`
   - 综合网表：`.../synth-vivado/com.google.coralnpu_fpga_chip_nexus_0.1.edn`（808MB）、`..._0.1.v`（329MB，329065099 字节）
   - 综合 checkpoint：`.../com.google.coralnpu_fpga_chip_nexus_0.1.runs/synth_1/chip_nexus.dcp`
   - 资源报告：`.../com.google.coralnpu_fpga_chip_nexus_0.1.runs/synth_1/chip_nexus_utilization_synth.rpt`
-  - 综合日志：`.../synth-vivado/T009-synth2.log`（本地副本 `.tao/logs/T009-server-synth.log`）
-- 本地拉回副本：`synth/out/T009_chip_nexus_synth_only/`（网表太大未拉回，留服务器）
+  - 综合日志：`.../synth-vivado/T009-synth2.log`（机器201副本 `.tao/logs/T009-server-synth.log`）
+- 机器201拉回副本：`synth/out/T009_chip_nexus_synth_only/`（网表太大未拉回，留机器202）
 
 ### 执行路径（决策记录）
 
-任务文件提供了 A（服务器 fusesoc）/ B（bazel）/ C（手工 tcl）三路径，最终**采用"本机官方 fusesoc 生成工程 → 服务器 Vivado 综合"的混合路径**，理由：
+任务文件提供了 A（机器202 fusesoc）/ B（bazel）/ C（手工 tcl）三路径，最终**采用"机器201官方 fusesoc 生成工程 → 机器202 Vivado 综合"的混合路径**，理由：
 
-1. **路径 A 不可行**：服务器无外网（pypi/github 均不通，**2026-08-18 历史实测；2026-08-20 起外网已通**）、无 pip/ensurepip，无法安装 fusesoc
-2. **路径 B 不可行**：`fusesoc_build` 规则把 `--setup --build` 绑定，在本地 bazel 跑会直接调本机 Vivado 综合；本机仅 4 核/11G（可用 5G），xcvu13p 综合需 ~23G 内存（实测 PSS 峰值），本机必然 OOM
-3. **混合路径**（采用）：本机 pip `fusesoc==2.4.3 + edalize==0.6.1`（与 coralnpu 官方 pin 一致，见 `coralnpu/third_party/python/requirements.bzl`），用官方 core 文件与参数跑 `fusesoc run --target=synth --setup` 生成自包含 Vivado 工程（19MB），rsync 推送服务器，服务器 `make synth` 完成综合
-   - 仍是官方 fusesoc 流程（非手工组工程），仅 setup/build 分机器执行；符合 T008 拓扑"服务器不跑 fusesoc/bazel，只跑 vivado"
-   - 综合实测内存 22.8G PSS 峰值 → 服务器（62G）是正确执行机
+1. **路径 A 不可行**：机器202无外网（pypi/github 均不通，**2026-08-18 历史实测；2026-08-20 起外网已通**）、无 pip/ensurepip，无法安装 fusesoc
+2. **路径 B 不可行**：`fusesoc_build` 规则把 `--setup --build` 绑定，在机器201 bazel 跑会直接调机器201 Vivado 综合；机器201仅 4 核/11G（可用 5G），xcvu13p 综合需 ~23G 内存（实测 PSS 峰值），机器201必然 OOM
+3. **混合路径**（采用）：机器201 pip `fusesoc==2.4.3 + edalize==0.6.1`（与 coralnpu 官方 pin 一致，见 `coralnpu/third_party/python/requirements.bzl`），用官方 core 文件与参数跑 `fusesoc run --target=synth --setup` 生成自包含 Vivado 工程（19MB），rsync 推送机器202，机器202 `make synth` 完成综合
+   - 仍是官方 fusesoc 流程（非手工组工程），仅 setup/build 分机器执行；符合 T008 拓扑"机器202不跑 fusesoc/bazel，只跑 vivado"
+   - 综合实测内存 22.8G PSS 峰值 → 机器202（62G）是正确执行机
 
 ### 实际命令
 
-本机（RTL/工程生成）：
+机器201（RTL/工程生成）：
 ```bash
 # 1. bazel 生成 Chisel 子系统产物（core 依赖）
 bazel build //fpga/ip/coralnpu_chisel_subsystem_default:rtl_files
@@ -53,7 +53,7 @@ fusesoc --config=<cfg: [main] cache_root=/tmp/fusesoc-cache> \
   --ClockFrequencyMhz=50 --IspClockFrequencyMhz=10 --SpimClockFrequencyMhz=100 \
   --ItcmSizeKBytes=8 --DtcmSizeKBytes=32 --pnr=none
 ```
-服务器（综合）：
+机器202（综合）：
 ```bash
 export XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic   # 关键！
 export PATH=/tools/Xilinx/2025.1/Vivado/bin:$PATH
@@ -65,8 +65,8 @@ nohup make synth > T009-synth2.log 2>&1 &
 
 | 阶段 | 实测值 |
 |---|---|
-| 工程生成（fusesoc setup，本机） | ~4 分钟 |
-| `synth_design`（服务器，elapsed） | **1 小时 25 分 39 秒**（cpu 1h59m42s） |
+| 工程生成（fusesoc setup，机器201） | ~4 分钟 |
+| `synth_design`（机器202，elapsed） | **1 小时 25 分 39 秒**（cpu 1h59m42s） |
 | 网表写出 write_edif + write_verilog | 27s + 47s |
 | 端到端（make synth 启动→完成） | ~1 小时 34 分钟 |
 | 综合内存 | PSS 峰值 22,811 MB（main 9,962 + forked 13,164） |
@@ -91,8 +91,8 @@ nohup make synth > T009-synth2.log 2>&1 &
 
 ### 坑 / 经验（T009）
 
-- **License 是最大坑**：T008 用 `get_parts` 验证"xcvu13p RECOGNIZED"≠ 可综合（那只是 part 数据库识别，不耗 license）。**服务器 Vivado 实际无 license 环境变量**，首次综合报 `Common 17-345 license not found for feature 'Synthesis'`。修复：`export XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic`（Vivado_System_Edition，2037 到期）。**此环境变量必须写入后续所有综合命令**。
-- **本机不可跑 xcvu13p 综合**：综合需 22.8G 内存峰值，本机 11G 必然 OOM；服务器 16 核/62G 是唯一正确执行机。
+- **License 是最大坑**：T008 用 `get_parts` 验证"xcvu13p RECOGNIZED"≠ 可综合（那只是 part 数据库识别，不耗 license）。**机器202 Vivado 实际无 license 环境变量**，首次综合报 `Common 17-345 license not found for feature 'Synthesis'`。修复：`export XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic`（Vivado_System_Edition，2037 到期）。**此环境变量必须写入后续所有综合命令**。
+- **机器201不可跑 xcvu13p 综合**：综合需 22.8G 内存峰值，机器201 11G 必然 OOM；机器202 16 核/62G 是唯一正确执行机。
 - **fusesoc 2.4.3 + edalize 0.6.1 组合**与 Vivado 2025.1 兼容（生成的 tcl 能正常驱动 synth_design）。
 - **ispyocto.core 的 `../../../external/` 相对路径**（bazel 布局遗留）在非 bazel 环境会解析失败；解法是建 `coralnpu/external/ispyocto` 符号链接指向 bazel output base 的 external/ispyocto，fusesoc setup 时它会把文件 copy 进工程（工程自包含）。
 - **fusesoc setup 的 WARNING**（`... not within the directory containing the core file. deprecated`）与 `backend is deprecated` 可忽略，不影响生成。
@@ -175,10 +175,10 @@ nohup make synth > T009-synth2.log 2>&1 &
 - **待确认项（T012）**：OSC1 实际振荡器频率未知（手册未标注，振荡器为用户安装件）。若实际≠100MHz：改 MMCM M/D/OUT 参数 + create_clock period 后重跑（小设计重跑约 10-30 分钟）；也可改用 TAI Player 可编程时钟（频率由软件设定）或用单端 IBUF（`USE_DIFF_CLK=0`）。
 - xsim 验证发现 MMCM 仿真模型输出周期与理论有偏差（VCO 爬升），已加 `USE_MMCM` 参数（0=clk_p 直连）供仿真/调试绕过。
 
-### 构建流程（非工程 batch，服务器）
+### 构建流程（非工程 batch，机器202）
 
 ```bash
-# 服务器（T008 拓扑：本机 push RTL/工程，服务器只跑 vivado）
+# 机器202（T008 拓扑：机器201 push RTL/工程，机器202只跑 vivado）
 export XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic   # 关键！
 export PATH=/tools/Xilinx/2025.1/Vivado/bin:$PATH
 cd ~/fpga/work/T010
@@ -188,7 +188,7 @@ nohup vivado -mode batch -source ~/fpga/synth/tcl/build_top.tcl \
 ```
 
 - 产物：`post_synth.dcp`、`post_route.dcp`、`top_coralnpu.bit`、`top_coralnpu.bin`、`utilization_*.rpt`、`timing_*.rpt`、`route_status.rpt`、`clock_utilization.rpt`、`drc_route.rpt`。
-- 本机 xsim 功能验证：`synth/sim/tb_top.sv`（USE_MMCM=0、BAUD=781250），4 条指令加载→S 启动→Q 轮询 HALTED→R 回读 42→LED→help/error 全部通过（日志 `.tao/logs/T010-sim-tb_top.log`）。
+- 机器201 xsim 功能验证：`synth/sim/tb_top.sv`（USE_MMCM=0、BAUD=781250），4 条指令加载→S 启动→Q 轮询 HALTED→R 回读 42→LED→help/error 全部通过（日志 `.tao/logs/T010-sim-tb_top.log`）。
 
 ### 坑 / 经验（T010）
 
@@ -208,7 +208,7 @@ nohup vivado -mode batch -source ~/fpga/synth/tcl/build_top.tcl \
 - 时序（post-route）：**WNS=+0.253ns（0 违例）、WHS=-0.085ns（7 端点，85ps，host→core AR 短路径 hold，可忽略）、0 routing errors**
   - 说明：hold 为寄存器化 AXI 输出后残留的少量短路径偏斜（build2 为 -0.016ns/2 端点，build3 为 -0.085ns/7 端点，属 run-to-run 放置差异）；85ps 在时序模型噪声级内，若 T013 板上实测异常再按"坑"节方法处理
 - 首版 50MHz 有 -0.148ns setup（5 端点）+ -0.236ns hold（41 端点）违例 → 降频 40MHz + AXI 输出注册化后基本消除（见"坑"）
-- bitstream（最终）：`top_coralnpu.bit`（55917279B，md5 4a588df3...）/ `top_coralnpu.bin`（55917152B，md5 96c04058...）；本机副本 `synth/out/T010/`；服务器 `~/fpga/work/T010/`
+- bitstream（最终）：`top_coralnpu.bit`（55917279B，md5 4a588df3...）/ `top_coralnpu.bin`（55917152B，md5 96c04058...）；机器201副本 `synth/out/T010/`；机器202 `~/fpga/work/T010/`
 - 资源（utilization_route.rpt）：
 
 | 资源 | T010 used/avail (util%) | T009 used/avail (util%) | 说明 |
@@ -237,7 +237,7 @@ nohup vivado -mode batch -source ~/fpga/synth/tcl/build_top.tcl \
 ## T011：资源/时序报告深度分析（T010 深化 + T009 对比 + 工具链沉淀）
 
 > 本段为 T011 分析任务产物：在 T010 已记录结论（LUT 43,446、Reg 9,296、RAMB36 10、DSP48E1 6、IOB 8、MMCM 1、WNS +0.253 / WHS -0.085）基础上，从留存报告深化 LUT 构成、RAMB36/DSP 归属、时序三阶段演进与关键路径，补全与 T009 基线对比及流程坑。
-> **数据来源（真实构建流水线，2026-08-18 服务器 Vivado 2025.1 构建，全部数字提取自留存报告，无编造）**：
+> **数据来源（真实构建流水线，2026-08-18 机器202 Vivado 2025.1 构建，全部数字提取自留存报告，无编造）**：
 > - T010：`synth/out/T010/` 下 `utilization_{synth,place,route}.rpt`、`timing_{synth,place,route}.rpt`、`route_status.rpt`、`clock_utilization.rpt`、`drc_route.rpt`、`T010-build.log`（首版 50MHz）、`T010-build2.log`（40MHz）、`T010-build3.log`（最终）、`vivado.log`
 > - T009：`synth/out/T009_chip_nexus_synth_only/chip_nexus_utilization_synth.rpt`
 
@@ -364,13 +364,13 @@ Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
   1. 先降频定位是否逻辑深度问题（50MHz→40MHz 后 setup 从 -0.058→+1.36）；
   2. hold 违例集中在 host→core 短路径时，用**输出寄存器化 + 握手后清除**把启动寄存器移到 AXI 端口（注意双握手挂死坑，见 T010 节）；
   3. hold 违例看 signoff `timing_route.rpt`（route 后可能大幅收敛，不要只看 place 阶段数值吓自己）。
-- **构建耗时实测（build3，服务器 16 核/62G）**：synth_design 12:54（PSS 峰值 10.86GB：main 3.26 + forked 8.48）→ opt_design 0:47 → place_design 4:30 → route_design 10:10 → write_bitstream 1:31 → **端到端 ~30 分钟**（对比 T009 xcvu13p 仅 synth 即 1h25m，小设计迭代很快）。
+- **构建耗时实测（build3，机器202 16 核/62G）**：synth_design 12:54（PSS 峰值 10.86GB：main 3.26 + forked 8.48）→ opt_design 0:47 → place_design 4:30 → route_design 10:10 → write_bitstream 1:31 → **端到端 ~30 分钟**（对比 T009 xcvu13p 仅 synth 即 1h25m，小设计迭代很快）。
 - **警告分类（build3：0 ERROR / 0 CRITICAL / 287 WARNING，9 类主因）**：8-7129 无负载端口×100、8-7137 fpnew set/reset 同优先级×92、8-6014 未用寄存器×42、8-3917 常量驱动端口×37、8-11065 参数转 localparam×7、8-6430×4、8-3936×2、8-3848×2（control_mvp 无驱动）、8-327×1（en_latch_reg 锁存器 + 1 条组合 latch loop，timing_route.rpt check_timing 12 也报 latch_loops=1 HIGH）。均为上游 Chisel 生成 RTL 行为，xsim 功能验证通过，T013 上板关注锁存器与 collision。
 - **check_timing 提示**：no_input_delay 2（报告仅给计数，未列端口名；2 个非时钟输入端口未设 input delay）、no_output_delay 3（3 个输出端口未设 output delay）——本设计全同步单时钟（40MHz）内部路径已约束，IO 为板级异步/无外部时序要求，可忽略（HIGH 提示非错误）；latch_loops 1 对应 8-327 的 en_latch_reg 组合 latch loop。
 
 ### 5. 报告文件留存路径
 
-| 报告/产物 | 本地 | 服务器（gxt@192.168.200.202） |
+| 报告/产物 | 机器201 | 机器202（gxt@192.168.200.202） |
 |---|---|---|
 | T010 全套报告 + bitstream | `synth/out/T010/`（utilization/timing_{synth,place,route}.rpt、route_status.rpt、clock_utilization.rpt、drc_route.rpt、post_synth.dcp、post_route.dcp、top_coralnpu.bit/.bin、T010-build{1,2,3}.log、vivado.log） | `~/fpga/work/T010/`（报告源路径 `/home/gxt/fpga/work/T010/`） |
 | T010 构建脚本/RTL/XDC | `synth/tcl/build_top.tcl`、`synth/rtl/`、`synth/xdc/top_coralnpu.xdc` | `~/fpga/synth/` 同结构 |

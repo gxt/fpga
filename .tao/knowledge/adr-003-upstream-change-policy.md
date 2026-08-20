@@ -10,7 +10,7 @@ coralnpu 以 git submodule 引入，`origin` 指向 fork `gxt/coralnpu`，`upstr
 
 复现过程（尤其器件适配、上板集成）可能遇到：
 
-- 上游 bug 或与本地工具链不兼容处；
+- 上游 bug 或与机器201工具链不兼容处；
 - 需要新增/调整 RTL 或构建 target 的情况。
 
 ## 决策
@@ -20,7 +20,7 @@ coralnpu 以 git submodule 引入，`origin` 指向 fork `gxt/coralnpu`，`upstr
    - 在 coralnpu/ 内 commit，`git push origin <branch>` 推送到 fork；
    - 主仓库 `git add coralnpu` 更新 gitlink 并提交；
    - 在 `.tao/knowledge/changelog.md` 记录实质改动（原因、内容、影响面）。
-3. **禁止产生"本地漂移"**：改了不 push、不记录的状态一律不允许；每次修改后必须走完上述流程。
+3. **禁止产生"机器201漂移"**：改了不 push、不记录的状态一律不允许；每次修改后必须走完上述流程。
 4. 尽量保持 submodule HEAD 与官方 main 接近，减少长期分叉。
 
 ## 影响
@@ -31,6 +31,6 @@ coralnpu 以 git submodule 引入，`origin` 指向 fork `gxt/coralnpu`，`upstr
 
 ## 已拒绝方案
 
-- **直接改子模块不 push**：`git submodule update` 会丢失本地改动。
+- **直接改子模块不 push**：`git submodule update` 会丢失机器201改动。
 - **把 coralnpu 从 submodule 改为独立仓库**：破坏现有仓库结构，改动面过大。
 - **只读上游、完全不改**：用户已确认允许必要小修走 fork。

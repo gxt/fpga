@@ -1,7 +1,7 @@
 # CoralNPU 构建链路与验证体系地图
 
 > 来源：T005 任务（Phase1）。本文梳理 coralnpu 子模块（`coralnpu/`）的 bazel 构建链路与验证体系，供本仓库后续仿真/综合/板级集成参考。
-> 事实来源：coralnpu 仓库构建文件（WORKSPACE、rules/*.bzl、各 BUILD）+ 本机实测 bazel 命令输出（日志留存 `.tao/logs/T005-*.log`）。
+> 事实来源：coralnpu 仓库构建文件（WORKSPACE、rules/*.bzl、各 BUILD）+ 机器201实测 bazel 命令输出（日志留存 `.tao/logs/T005-*.log`）。
 > 创建日期：2026-08-17；coralnpu HEAD：`d93b5550`（`Add GetCycleCount API to CoralNPUSimulator and CoreMiniAxiSimulator`）。
 > 约定：**「事实」** = 构建文件或 query 输出明文可查证；**「推断」** = 由上下文推导。目标名一律用 bazel label 完整写法。
 
@@ -34,7 +34,7 @@ RTL 生成链（宿主 x86）：
 |---------|------------|---------|
 | Cocotb | `//tests/cocotb:core_mini_axi_sim_cocotb_<testcase>`（meta: `..._sim_cocotb`） | `bazel test` |
 | Verilator C++ sim（SystemC tb） | `//tests/verilator_sim:core_mini_axi_sim` | `bazel build` + 直接运行 |
-| UVM（VCS + UVM 1.2） | `tests/uvm/`（Makefile 驱动，Bazel 只产出 DUT/ELF） | `make compile && make run`（VCS 环境，本机未执行） |
+| UVM（VCS + UVM 1.2） | `tests/uvm/`（Makefile 驱动，Bazel 只产出 DUT/ELF） | `make compile && make run`（VCS 环境，机器201未执行） |
 
 ---
 
@@ -151,11 +151,11 @@ bazel build //examples:coralnpu_v2_hello_world_add_floats
 
 ## 3. 依赖拉取与缓存
 
-所有外部依赖由 bazel 在首次构建时拉取，缓存于本机 bazel 缓存目录（`~/.cache/bazel/_bazel_<user>/<outputbase>/external/`，磁盘占用见 toolchain-notes.md T002）。拉取方式与来源（事实，WORKSPACE / rules/repos.bzl / MODULE.bazel / rules_hdl）：
+所有外部依赖由 bazel 在首次构建时拉取，缓存于机器201 bazel 缓存目录（`~/.cache/bazel/_bazel_<user>/<outputbase>/external/`，磁盘占用见 toolchain-notes.md T002）。拉取方式与来源（事实，WORKSPACE / rules/repos.bzl / MODULE.bazel / rules_hdl）：
 
 | 依赖 | 来源 | 拉取方式 | 缓存 |
 |------|------|---------|------|
-| **hermetic Verilator** | `https://github.com/verilator/verilator/archive/b97df914ddcbff470c5a37d3c1bd99d9813f4698.tar.gz`（rules_hdl `dependency_support/verilator/verilator.bzl` L25） | 由 `rules_hdl` 的 `rules_hdl_deps` bzlmod extension 拉取（MODULE.bazel L83-84）；所属 `rules_hdl` 仓库挂 19 个 coralnpu 本地 patch（0001-0019，repos.bzl）；verilator 自身 1 个 patch（`0001-Remove-autodetect-of-VERILATOR_ROOT`） | `external/verilator/`（**源码构建**，非系统安装；V3*.cpp 编译是首次构建耗时大头） |
+| **hermetic Verilator** | `https://github.com/verilator/verilator/archive/b97df914ddcbff470c5a37d3c1bd99d9813f4698.tar.gz`（rules_hdl `dependency_support/verilator/verilator.bzl` L25） | 由 `rules_hdl` 的 `rules_hdl_deps` bzlmod extension 拉取（MODULE.bazel L83-84）；所属 `rules_hdl` 仓库挂 19 个 coralnpu 机器201 patch（0001-0019，repos.bzl）；verilator 自身 1 个 patch（`0001-Remove-autodetect-of-VERILATOR_ROOT`） | `external/verilator/`（**源码构建**，非系统安装；V3*.cpp 编译是首次构建耗时大头） |
 | **RISC-V 工具链** | `https://storage.googleapis.com/shodan-public-artifacts/toolchain_coralnpu_v2-2026-06-29.tar.xz`（WORKSPACE L259-275，sha256 pin） | `http_archive` → `@toolchain_coralnpu_v2` | `external/toolchain_coralnpu_v2/`；bazel toolchain 方式注册，`//toolchain` BUILD 组装 cc_toolchain |
 | **rules_hdl**（verilator/cocotb/verilog 规则） | `https://github.com/hdl/bazel_rules_hdl/archive/7a1ba0e8d229200b4628e8a676917fc6b8e165d1.tar.gz`（repos.bzl L133-165） | `http_archive` + 19 个 coralnpu patch（0001-0019） | `external/rules_hdl/` |
 | **opentitan**（lowrisc_opentitan_gh） | `https://github.com/lowRISC/opentitan/archive/0e3cf62211004443d6d29f8f6120882376da499a.zip`（repos.bzl L300-309，`fpga_repos`） | `http_archive` + 2 patch；另在 WORKSPACE L219-257 拉其 pip 依赖（`ot_python_deps`） | `external/lowrisc_opentitan_gh/` |
@@ -211,9 +211,9 @@ bazel build //examples:coralnpu_v2_hello_world_add_floats
 ### 4.3 UVM（`tests/uvm/`，仅说明不执行）
 
 - 位置：`tests/uvm/`（tb/common/env/tests/coralnpu_dv.f/Makefile），DUT 为 `RvvCoreMiniVerificationAxi`
-- **技术栈**：Synopsys VCS + UVM 1.2（README 声明）；cocosim 用 `@coralnpu-mpact-verilator` 静态库（本地 target 为 `coralnpu_cosim_lib_static_archive`，BUILD L79-82；`coralnpu_cosim_lib_static` 是上游仓库内的 label）
+- **技术栈**：Synopsys VCS + UVM 1.2（README 声明）；cocosim 用 `@coralnpu-mpact-verilator` 静态库（机器201 target 为 `coralnpu_cosim_lib_static_archive`，BUILD L79-82；`coralnpu_cosim_lib_static` 是上游仓库内的 label）
 - **bazel 侧 target**（BUILD L84-111）：`//tests/uvm:uvm_sim_verilator`（`verilator_model`，但 README 明确运行需 VCS；注意该 target 用了 `rvv_core_mini_verification_axi_cc_library_emit_verilog_single_sv`）；批量回归由 `collect_coralnpu_elfs()`（rules/coralnpu_v2.bzl L418-440）为每个 `coralnpu_v2_binary` 生成 `verilator_uvm_regression_<name>` 测试（tag `verilator-uvm-regression`）
-- **运行流程**（README，本机未执行，无 VCS/license）：
+- **运行流程**（README，机器201未执行，无 VCS/license）：
   1. `bazel build //tests/cocotb/tutorial:coralnpu_v2_program` 生成 program.elf（Bazel 只负责 DUT SV 与 ELF）
   2. 拷贝到 `tests/uvm/bin/program.elf`
   3. `make compile`（VCS 编译，输出 sim_work/simv）
@@ -370,7 +370,7 @@ bazel build //examples:coralnpu_v2_hello_world_add_floats                       
 bazel test  //tests/cocotb:core_mini_axi_sim_cocotb_core_mini_axi_csr_test           # Cocotb 单测
 bazel build //tests/verilator_sim:core_mini_axi_sim --linkopt=-latomic                # C++ sim 构建
 ./bazel-out/k8-fastbuild/bin/tests/verilator_sim/core_mini_axi_sim --binary <elf>     # C++ sim 运行
-(cd tests/uvm && make compile && make run)                                            # UVM（需 VCS，本机未执行）
+(cd tests/uvm && make compile && make run)                                            # UVM（需 VCS，机器201未执行）
 
 # 依赖查询
 bazel query --output=build '//hdl/chisel/src/coralnpu:core_mini_axi_cc_library'
@@ -386,5 +386,5 @@ bazel cquery '//tests/verilator_sim:core_mini_axi_sim'
 - **bazel query 与 cquery 用途不同**：query 静态、不限配置；cquery 展开配置。查 target 定义用 query，查"某个配置下会构建什么"用 cquery。
 - **`deps(x, 2)` 输出含大量样板依赖**（absl、bazel_tools、remotejdk 等），笔记留存时按需过滤，但**原始完整日志保留在 `.tao/logs/`**。
 - **bazel-bin 符号链接随最近构建目标切换**（T003 已记录）：`emit_verilog` 产物在 `bazel-out/k8-fastbuild/bin/...`，而 ELF 在 `bazel-out/k8-fastbuild-ST-<hash>/bin/...`（ST = transition），混用路径会踩坑。
-- **UVM 目标 `//tests/uvm:uvm_sim_verilator` 只是 bazel 侧模型 target**，README 声明运行依赖 VCS + UVM 1.2 + MPACT cosim，本机无 VCS 环境仅记录不执行。
+- **UVM 目标 `//tests/uvm:uvm_sim_verilator` 只是 bazel 侧模型 target**，README 声明运行依赖 VCS + UVM 1.2 + MPACT cosim，机器201无 VCS 环境仅记录不执行。
 - 本任务全部命令为查询/构建（缓存命中），无代码改动，无 build 失败。

@@ -1,7 +1,7 @@
 # T006: 跑通 Cocotb 测试套件核心子集
 
 ## 执行环境
-**执行环境**：本地
+**执行环境**：机器201
 
 ## 接口规范
 - 输入：T002 已验证的 bazel/cocotb 环境；coralnpu `tests/cocotb/BUILD` 中定义的测试 target 清单
@@ -25,13 +25,13 @@
 **验收结果**：
 - 环境实测：`nproc`=4；`free -h` 显示 total 11Gi / available ~6.5Gi / swap 2Gi（已用 1.1Gi）——证实任务文件"内存 11G"仅为总容量，**全程单 target 串行执行**，无 OOM
 - `bazel query 'tests(//tests/cocotb:all)'`：494 个 test targets（已存 /tmp/gxt/T006-query-tests.txt）
-- 37 个 target 逐个 `bazel test //tests/cocotb:<target>` 退出码 0；唯一失败 gdbserver 超时（300s）已诊断根因：工具链 `riscv64-unknown-elf-gdb` 硬依赖 `libmpfr.so.4`（本机仅 libmpfr.so.6），`toolchain/wrappers/gdb` 兼容逻辑在本机失效（`ldd` 实测 `libmpfr.so.4 => not found`），gdb 无法启动 → pyocd gdbserver 常驻 → 超时。确定性环境问题，**未盲目重试**（无重试依据）
+- 37 个 target 逐个 `bazel test //tests/cocotb:<target>` 退出码 0；唯一失败 gdbserver 超时（300s）已诊断根因：工具链 `riscv64-unknown-elf-gdb` 硬依赖 `libmpfr.so.4`（机器201仅 libmpfr.so.6），`toolchain/wrappers/gdb` 兼容逻辑在机器201失效（`ldd` 实测 `libmpfr.so.4 => not found`），gdb 无法启动 → pyocd gdbserver 常驻 → 超时。确定性环境问题，**未盲目重试**（无重试依据）
 - 完整 PASSED 时长与明细见矩阵文档；真实输出留存于 38 个日志文件
 **新发现/坑**：
 1. BUILD 中 4 个 `large` case 与 RVV `enormous` case **实测远低于超时档**（basic 85.6s、burst 68.2s、stress 23.3s、rand_instr 5.8s、rvv basic 97.2s）——"large/enormous" 只是分类标签，不是不可跑的判据
 2. `riscv_tests` 一个 case 覆盖 158 个 ELF（rv32ui/um/uzbb/uf 含浮点）仅 5.1s，是最经济的 scalar ISA 回归
 3. RVV verilator 模型首次构建 ~383s（63 actions），之后全缓存；RVV 测试先构建再跑即可
-4. **gdbserver 环境坑**：coralnpu 工具链 gdb 依赖 `libmpfr.so.4`，wrapper 的兼容方案（`ldconfig -p | grep 'mpfr.so$'`）只对装了未版本化 `libmpfr.so`（libmpfr-dev）的系统有效；本机仅有 libmpfr.so.6。修复需系统级安装 libmpfr4/libmpfr-dev（需 root），建议 T007 跟进
+4. **gdbserver 环境坑**：coralnpu 工具链 gdb 依赖 `libmpfr.so.4`，wrapper 的兼容方案（`ldconfig -p | grep 'mpfr.so$'`）只对装了未版本化 `libmpfr.so`（libmpfr-dev）的系统有效；机器201仅有 libmpfr.so.6。修复需系统级安装 libmpfr4/libmpfr-dev（需 root），建议 T007 跟进
 5. 所有单测输出 "specified size is too big" 警告（声明 size>实际耗时），无碍
 **遗留问题**：
 - `core_mini_axi_debug_gdbserver`（含 RVV 版）未跑通：根因 libmpfr.so.4 缺失，需系统级安装后复验（已附证据，矩阵"排除清单"记录）
@@ -48,7 +48,7 @@
 2. **验收标准 2（子集退出码 0）**：✅ 37 个 target 全部退出码 0；唯一非绿 gdbserver 已按规则 5 诊断（根因 libmpfr.so.4 缺失，`ldd` 实测 + wrapper 直接复现），非 flaky、无重试依据，故不计入子集并如实记录失败。
 3. **验收标准 3（矩阵）**：✅ `.tao/knowledge/cocotb-test-matrix.md` 含 target/测试内容/实测时长/结果/RTL 配置四要素；RTL 配置取自知识库 coralnpu-build-map.md（CoreMiniAxi 与 RvvCoreMiniAxi 的 chisel 参数），非杜撰。
 4. **验收标准 4（排除说明）**：✅ 排除 5 类并给原因：vcs 依赖（227）、meta 聚合、UVM 非 cocotb（26）、附加 RVV 套件、gdbserver 环境失败（附 `ldd`/wrapper 复现证据）。
-5. **验收标准 5（失败先诊断）**：✅ 仅 1 例失败，诊断链完整（日志超时 → pyocd 常驻 → gdb 启动失败 → libmpfr.so.4 not found → wrapper 兼容逻辑对本机 ldconfig 失效），未盲目重试。
+5. **验收标准 5（失败先诊断）**：✅ 仅 1 例失败，诊断链完整（日志超时 → pyocd 常驻 → gdb 启动失败 → libmpfr.so.4 not found → wrapper 兼容逻辑对机器201 ldconfig 失效），未盲目重试。
 6. **约束核验**：未新增测试代码 ✅；未改 coralnpu/ 内文件 ✅（仅新增 .tao/ 下矩阵与日志）；日志留存 38 个 ✅；内存实测（nproc/free）记录进矩阵 ✅；全程串行无 OOM ✅。
 7. **防造假核验**：所有 PASSED 时长逐条 grep 自真实日志 ✅；gdbserver 失败如实记录（未伪造通过）✅；"37/37 + 1 排除"的计数与日志清单一致（`grep -H "PASSED in"` 输出 37 条 + gdbserver 1 条 FAILED）✅。
 8. **数据准确性复核**：vcs 目标数与 uvm 目标数已按 query 输出精确统计（227/26）修正，未用估算值 ✅。
@@ -70,7 +70,7 @@
 | `bazel test //tests/cocotb:rvv_core_mini_axi_sim_cocotb_rvv_exceptions_test --nocache_test_results` | **真实重跑** `PASSED in 2.6s`，exit=0（日志 `.tao/logs/T006-review-rvv_exceptions_nocache.log`） | ✅ 通过（与矩阵 2.7s 近似一致） |
 | `bazel test //tests/cocotb:core_mini_axi_debug_cocotb_core_mini_axi_debug_halt_resume` | `(cached) PASSED in 5.1s`，exit=0（日志 `.tao/logs/T006-review-debug_halt_resume.log`） | ✅ 通过（与矩阵 5.1s 一致） |
 | 日志真实性抽查 | `.tao/logs/T006-*.log` 共 **38 个**；`grep -H "PASSED in"` = **37 条**、FAILED = 1 条（gdbserver 300s TIMEOUT，`exit status 3`）；每条 PASSED 时长与矩阵逐条一致；抽查 master_write_alignment / rvv_exceptions 日志为真实 bazel 输出（非伪造） | ✅ 37/37 + 1 FAIL 属实 |
-| gdbserver 排除证据复现 | `ldd` 工具链 gdb → `libmpfr.so.4 => not found`；直接运行 gdb → `error while loading shared libraries: libmpfr.so.4` exit=127；runfiles 树内运行 wrapper → 同报错 exit=127；`ldconfig -p | grep 'mpfr.so$'` 无匹配（本机仅 libmpfr.so.6） | ✅ "确定性环境失败"**属实**，证据链完整 |
+| gdbserver 排除证据复现 | `ldd` 工具链 gdb → `libmpfr.so.4 => not found`；直接运行 gdb → `error while loading shared libraries: libmpfr.so.4` exit=127；runfiles 树内运行 wrapper → 同报错 exit=127；`ldconfig -p | grep 'mpfr.so$'` 无匹配（机器201仅 libmpfr.so.6） | ✅ "确定性环境失败"**属实**，证据链完整 |
 | vcs/uvm 排除计数 | `grep -c "vcs_"`（query 结果）= **227**、`verilator_uvm_regression_` = **26**（我的独立 query 输出统计） | ✅ 与矩阵/完成区一致 |
 | meta target 存在性 | `core_mini_axi_sim_cocotb`、`rvv_core_mini_axi_sim_cocotb`、`rvv_load_store_test`、`rvv_arithmetic_cocotb_test`、`rvv_ml_ops_cocotb_test` 均在 query 输出中；`nop_stress_test` BUILD 确证 `hdl_toplevel="RvvCoreMiniAxi"` | ✅ |
 | RTL 配置引用 | 矩阵 CoreMiniAxi / RvvCoreMiniAxi 参数与 `coralnpu-build-map.md` §3 逐条一致 | ✅ |
