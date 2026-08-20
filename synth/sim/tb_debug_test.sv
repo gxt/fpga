@@ -108,6 +108,7 @@ module tb_debug_test;
         w_cmd(32'h30808, is_write ? 32'h2 : 32'h1);  // DbgReqOp = WRITE(2)/READ(1) 触发
         rdata = data;
         if (!is_write) r_word(32'h30810, rdata);  // DbgRspData 读结果
+        w_cmd(32'h30814, 32'h0);              // 写 DbgStatus 清响应队列（深度1，必须消费）
     endtask
 
     // 轮询 Abstractcs(0x16) busy=0 且 cmderr=0
