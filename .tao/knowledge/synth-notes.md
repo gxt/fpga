@@ -441,3 +441,10 @@ Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
 - **规律**：连续 AXI 写 TCM **~3-4 个 32 位字后 host 卡**（DTCM 3 字、ITCM 3-14 字不定）
 - **疑点**：AxiSlave `Queue(io.axi.write.data, 3)`（深度 3）+ fabricMux/itcmArbiter 写路径上板时序；或 B 响应累积
 - 下一步：深挖 AxiSlave/fabricMux 写路径（上板时序）+ 机器202 40MHz 仿真重现
+
+### host 连续命令卡：40MHz 仿真不复现（2026-08-20）
+
+- **机器202 40MHz 仿真**（tb_uart_cont.sv，贴近上板配置）：连续写 DTCM/ITCM **16/16 全部成功**——未复现上板"3-4 字卡"
+- **结论**：仿真（50MHz/40MHz）均正常，上板卡为**综合后/物理层时序问题**（仿真不可复现）
+- 排除：速度/缓冲、burst 数据时序、时钟门控、40MHz 频率
+- **下一步**：需上板 ILA 探针诊断（host FSM 状态 + AXI B 信号），或接受 T015 阻塞、转向其他任务
