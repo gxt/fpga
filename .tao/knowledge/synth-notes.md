@@ -389,3 +389,11 @@ Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
 - **RTL 结构**：ITCM/DTCM 均 3 端口 FabricArbiter（core / AXI slave(fabricMux) / debug(dm.io.itcm)），AXI slave 写响应由 FabricMux.writeResp 决定（AxiSlave.scala L89-92）；设计层面应一致，上板差异疑为时序/核状态
 - **影响**：T007/T013 程序 .text 在 ITCM，host 无法经 UART W 加载 → **T015/T013 程序加载阻塞**
 - **候选解决**：① 用 **Debug 模块写 ITCM**（T016 通道，`dm.io.itcm` 设计支持，cmderr=5 证 Debug 可访问 ITCM）；② 深挖 FabricMux IMEM writeResp + 上板时序；③ 程序放 DTCM 执行（需确认核取指能力）
+
+### T016 阶段 A 结果：Debug 写 ITCM/DTCM 验证成功（2026-08-20，机器202 xsim）
+
+- **核心达成**：经 UART host 触发 Debug 抽象命令（Access Memory）**写 ITCM[0x0]/DTCM[0x10000] 成功**（R 命令读回 deadbeef/12345678 一致）——Debug 通道可写 TCM，为上板 ITCM 加载提供可行路径（绕开 host AXI 直写 ITCM 的 SLVERR 问题）
+- **Debug 访问协议（关键发现）**：CoreAxiCSR 的 Dbg 寄存器（非标准 Debug 0x30810 直地址）：DbgReqAddr=0x30800（写 Debug 内部偏移）、DbgReqData=0x30804、DbgReqOp=0x30808（READ=1/WRITE=2 触发）、DbgRspData=0x30810、DbgStatus=0x30814（**写清响应队列，深度 1 必须消费**）
+- Debug 内部寄存器偏移：Data0=0x4、Data1=0x5、Dmcontrol=0x10、Dmstatus=0x11、Abstractcs=0x16、Command=0x17
+- **剩余待查**：Dmcontrol 读回 0（haltreq 读回异常，疑读路径时序）；Debug Access Memory 读返回 0（读路径）
+- 上板评估：host 写 CSR 0x30800 区上板已验证 OK（CSR 写通路正常）→ Debug 写 ITCM 机制仿真证实 → 上板 Debug 加载路径理论可行，待 T016 阶段 B 实测
