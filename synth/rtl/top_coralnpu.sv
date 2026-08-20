@@ -177,6 +177,11 @@ module top_coralnpu #(
     logic [31:0] s_awaddr;
     logic [5:0]  s_awid;
     logic [7:0]  s_awlen;
+    // ---- Direct host TCM write（ITCM 加载，绕过 AXI）----
+    logic        host_tcm_write_valid;
+    logic [31:0] host_tcm_write_addr;
+    logic [127:0] host_tcm_write_data;
+    logic [15:0] host_tcm_write_strb;
     logic [2:0]  s_awsize;
     logic [1:0]  s_awburst;
     logic [3:0]  s_awcache, s_awqos, s_awregion;
@@ -252,12 +257,6 @@ module top_coralnpu #(
         .host_tcm_write_data  (host_tcm_write_data),
         .host_tcm_write_strb  (host_tcm_write_strb)
     );
-
-    // ---- Direct host TCM write (bypass AXI, ITCM loading) ----
-    logic        host_tcm_write_valid;
-    logic [31:0] host_tcm_write_addr;
-    logic [127:0] host_tcm_write_data;
-    logic [15:0] host_tcm_write_strb;
 
     // ---- CoreMiniAxi（bazel 生成，不改动） ----
     logic core_halted, core_fault, core_wfi;
