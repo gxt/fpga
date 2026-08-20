@@ -412,3 +412,10 @@ Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
 - **可能根因**：上板 Debug 请求 ready/时序（req_valid_pulse 需 io.debug.req.ready）；或 CoreAxiCSR Dbg 寄存器上板写路径未触发 Debug 模块；需波形级排查
 - **影响**：上板 Debug 加载通道当前不可用；T015 程序加载阻塞未解决
 - **候选**：① 波形级排查上板 Debug（时序/ready）；② 复用 host W 写 ITCM 的复位窗口（不稳定）；③ 程序放 DTCM 执行（需确认核取指）
+
+### T015/T016 加载路径查证（2026-08-20）：核取指仅限 ITCM
+
+- **核取指路径**：ibus `inItcm`（ITCM 0x0-0x1FFF）走 ITCM fast path；出 ITCM 经 `IBus2Axi`(id=1) → AXI master（readAddrArb in(1)）→ 外部 m_axi（CoreAxi.scala L171-200, L266-276）
+- **DTCM(0x10000) 为 DMEM（dbus 数据口），不在 ibus 取指路径**——程序不能放 DTCM 执行
+- **结论**：程序必须在 ITCM(0x0)；加载必须写 ITCM；「程序放 DTCM」方案不可行
+- 加载候选：① host W 写 ITCM（上板复位窗口，不稳定）；② 上板 Debug 写 ITCM（当前不工作，待排查）；③ 排查上板 host 写 ITCM SLVERR 根因（复位后核状态/CSR_CTRL 控制）
