@@ -172,10 +172,11 @@ nohup make synth > T009-synth2.log 2>&1 &
 
 - 源：OSC1（W4/W3，默认 LVDS 差分）→ IBUFDS → **MMCME2_BASE**（原语，非 IP）→ BUFG → clk_core。
 - 参数：假定输入 100MHz → M=12/D=1/OUT0=24 → 50MHz。`top_coralnpu` 参数 `CLK_IN_HZ/CORE_CLK_HZ/BAUD` 与 XDC `create_clock -period 10.0` 是唯一时钟配置点。
-- **⚠️ T010 时钟源修正（2026-08-20 资料核实）**：T010 用 W4/W3（OSC1）按 100MHz 假定是**错误的**——**OSC1(W4/W3)=48MHz**（DualV7 实测，已废弃）；**正确的 100MHz 差分时钟是 L4(P)/L3(N)**（JG1/JG2 · s2cclk_1，`V7-FPGA-HW-Description.md`，XDC `create_clock -period 10.000 [get_ports clk_p]`）。
-  - **修正方案（机器202 重新综合）**：XDC 引脚 W4/W3 → **L4/L3**（IBUFDS LVDS，`IO_L14N/P_T2_MRCC_36` 级），`top_coralnpu.sv` 时钟注释/参数同步；MMCM 参数不变（仍按 100MHz 输入 → 40MHz 输出，若维持 CORE_CLK 40MHz 则 OUT0 不变）；重跑 synth/impl/bitstream（约 30-40 分钟）。
-  - 备选：保持 W4/W3 但按 48MHz 重配 MMCM（输出 19.2MHz，频率偏低不建议）；或单端 IBUF（`USE_DIFF_CLK=0`，需另一引脚）。
-- **待确认项（T012）**：RS232 线缆（J26，TTL 转 USB 或 DB9）；OSC1 已不再需要（改用 L4/L3 100MHz）。
+- **⚠️ T010 时钟源修正（2026-08-20，已完成）**：T010 原用 W4/W3（OSC1）按 100MHz 假定是**错误的**——**OSC1(W4/W3)=48MHz**（DualV7 实测，已废弃）；**正确 100MHz 差分时钟 = L4(P)/L3(N)**（JG1/JG2 · s2cclk_1，`V7-FPGA-HW-Description.md`）。
+  - **修正内容（硬件工程师 2026-08-20 确认）**：① 时钟 = s2cclk_1（L4/L3，100MHz 差分）；② 复位 = SW1（AP31，低有效）；③ **UART = 子板 UART AV42(rxd)/AU42(txd)，1.8V**（替代 J26 RS232 F20/E20）
+  - **执行**：XDC 改 L4/L3 + AV42/AU42，机器202 重综合/实现/bitstream（`synth/out/T010-fix-clk/`）
+  - **结果**：**0 ERROR / 0 CRITICAL WARNING**；**WNS=+0.953ns**（优于原 +0.253）、WHS=-0.077/4 端点（85ps 级）、0 routing errors；bit md5 `35624576...`（机器202 `~/fpga/work/T010-fix-clk/`）
+- **待确认项（T012）**：RS232 线缆不再需要（改用子板 UART AV42/AU42，CH341 `/dev/ttyUSB2`）。
 - xsim 验证发现 MMCM 仿真模型输出周期与理论有偏差（VCO 爬升），已加 `USE_MMCM` 参数（0=clk_p 直连）供仿真/调试绕过。
 
 ### 构建流程（非工程 batch，机器202）

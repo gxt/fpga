@@ -49,7 +49,7 @@
 - **残留 hold -0.085ns（7 端点）**：host→core AR 短路径，run-to-run 差异，85ps 噪声级；板上异常时按 synth-notes 方法处理
 **遗留问题**：
 - T012 待确认：~~OSC1 实际振荡器频率~~ **（2026-08-20 已确认：OSC1(W4/W3)=48MHz 废弃；正确 100MHz = L4/L3 s2cclk_1，见 synth-notes.md"T010 时钟源修正"）**；RS232 J26 线缆/转 USB 可用性；RS232 电平转换器在板上实际焊接情况
-- **⚠️ T010 时钟源修正（机器202）**：当前 bit 用 W4/W3(OSC1 48MHz) 按 100MHz 假定配置，**时钟错误**；需改 XDC 引脚 L4/L3（100MHz）并在**机器202 重新综合/实现/生成 bitstream**（约 30-40 分钟），修正后的 bit 供 T012/T015 使用
+- **⚠️ T010 时钟源修正（已完成，2026-08-20）**：XDC 改 L4/L3（100MHz s2cclk_1）+ UART AV42/AU42（子板 UART，硬件工程师确认），机器202 重综合完成：0 ERROR / WNS +0.953ns / bit md5 35624576...（`synth/out/T010-fix-clk/`）——**修正后 bit 为 T012/T015 使用**
 - **⚠️ xsim 分工说明（2026-08-20 新分工）**：本任务 xsim 功能验证在**机器201** 执行（当时旧分工）；按新分工（2026-08-20 起）**xsim 等 Vivado 任务应在机器202 执行**，机器201 非特殊情况不调用 Vivado（特殊情况需咨询用户）
 - 本任务未 commit（主会话收尾时提交）；`synth/out/` 拉回副本不进 git（已有 .gitignore）
 - 首版/第二版构建日志与中间产物留存 `synth/out/T010/`（T010-build.log、T010-resume.log、T010-build2.log 等），供 T011 对比分析
