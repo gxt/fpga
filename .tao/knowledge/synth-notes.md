@@ -381,3 +381,11 @@ Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
 | T009 官方基线 | `synth/out/T009_chip_nexus_synth_only/chip_nexus_utilization_synth.rpt` | `~/fpga/work/T009/synth_only/synth-vivado/com.google.coralnpu_fpga_chip_nexus_0.1.runs/synth_1/chip_nexus_utilization_synth.rpt` |
 
 **T013 上板参考结论**：T010 在 xc7v2000t 上资源占用 <4% LUT / <0.8% BRAM，40MHz signoff 仅 7 端点 85ps hold 噪声级违例；资源与时序余量充足，上板风险主要在**板级**（RS232 电平/波特率偏差 +3.3%、OSC1 频率待确认，见 T010 节）。
+
+### T015 实测阻塞：上板 host 经 AXI 写 ITCM 返回 SLVERR（2026-08-20）
+
+- **实测**：UART host 通路正常（`?`→HELP、W/R 命令 DTCM 读写一致）；**W 写 ITCM(0x0-0x1FFF) 返回 ERR（AXI SLVERR）**，写 DTCM(0x10000) OK
+- **矛盾**：T010 仿真（`synth/sim/tb_top.sv` L161-168）W 写 ITCM 返回 OK 且 ALL CHECKS PASSED（程序加载运行验证）
+- **RTL 结构**：ITCM/DTCM 均 3 端口 FabricArbiter（core / AXI slave(fabricMux) / debug(dm.io.itcm)），AXI slave 写响应由 FabricMux.writeResp 决定（AxiSlave.scala L89-92）；设计层面应一致，上板差异疑为时序/核状态
+- **影响**：T007/T013 程序 .text 在 ITCM，host 无法经 UART W 加载 → **T015/T013 程序加载阻塞**
+- **候选解决**：① 用 **Debug 模块写 ITCM**（T016 通道，`dm.io.itcm` 设计支持，cmderr=5 证 Debug 可访问 ITCM）；② 深挖 FabricMux IMEM writeResp + 上板时序；③ 程序放 DTCM 执行（需确认核取指能力）
