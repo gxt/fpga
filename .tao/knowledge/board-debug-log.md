@@ -86,3 +86,28 @@
 - **测试脚本**：`sim/uart_slow_test.py`（100ms 间隔 DTCM/ITCM 连续写）、`sim/diag_itcm_write.py`
 - **相关环境**：bazel 需 `CC=clang-14`（Ubuntu 24.04 clang-18 modules 不兼容）
 - **恢复步骤**：复位 → `sg dialout` 跑 uart_slow_test.py → 验证 ITCM 直写全过 → 记录结果
+
+### 分析：ITCM vs DTCM 结构对比（2026-08-20，T015 根因分析）
+
+**背景**：上板 host AXI 写 DTCM 正常、写 ITCM 3-4 字后卡；仿真不复现。排查存储层是否差异。
+
+**RTL 查证结论**：
+| 维度 | ITCM | DTCM |
+| --- | --- | --- |
+| 地址/大小 | 0x0000-0x1FFF（8KB） | 0x10000-0x17FFF（32KB） |
+| 接口位宽 | 128b + 16b strb | 相同（TCM128） |
+| 存储组成 | SramBlock(512)=2×RAMB36（无级联） | SramBlock(2048)=8×RAMB36（4×深度级联） |
+| 存储黑盒 | Sram.v Generic 行为 SRAM，同步1拍读 | 完全同构 |
+| 仲裁端口 | 4：core取指/AXI/Debug/host_tcm(新) | 3：core读写/AXI/Debug |
+| core 访问 | 只读（取指，write 置 invalid） | 读+写 |
+| 优先级 | source(0)=core取指（最高） | source(0)=core数据总线（最高） |
+
+- **存储层完全同构**（同 Sram.v 黑盒，仅 NUM_ENTRIES 不同），BRAM 无本质区别，可排除存储差异
+- **关键差异**：FabricArbiter（Fabric.scala:24）为**固定优先级**，fabricBusy(i)=高优先源有效即背压
+
+**根因假设**：ITCM 的 source(0)=core 取指端口——core 一旦运行（PC 在 ITCM 内）持续占用 ITCM，AXI 写（source(1)）被永久背压饿死；DTCM 的 source(0) 仅 load/store 时占用，程序不访问数据时 AXI 写畅通。**与"DTCM 正常、ITCM 卡"吻合**。
+**待实证**：上板 core 在 resetReg=3（复位+门控）下 ibus.valid 是否残留为高（组合逻辑可能拉高）。
+
+**下一步验证（新 bit T010-hosttcm 已烧录待测）**：
+1. 复位后测 host_tcm 直写（source(3) 最低优先）：**直写也卡**→证明仲裁器饿死假设；**直写通**→AXI slave→FabricMux 路径问题
+2. 若饿死假设成立：修复方向 = host 写 ITCM 前暂停 core（halt/保持复位）或调整仲裁优先级
