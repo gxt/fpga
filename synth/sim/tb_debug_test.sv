@@ -1,19 +1,21 @@
 // tb_debug_test.sv —— T016 阶段 A: Debug 抽象命令读写 TCM 验证（xsim，机器202）
 //
-// 目标：验证经 UART host（W 命令写 CSR 0x30800 区域）触发 Debug 模块
-//       抽象命令（Access Memory）读写 ITCM/DTCM，作为 T015 加载通道备选。
+// 目标：验证经 UART host 触发 Debug 模块抽象命令（Access Memory）读写 ITCM/DTCM。
 //
-// 序列（Access Memory 写 ITCM 0x0）：
-//   1) W 30810 80000001   Dmcontrol: haltreq[31]+dmactive[0]（halt 核）
-//   2) 轮询 Q 直到 CSR_STATUS(0x30008) bit0=HALTED=1
-//   3) W 30805 <addr>     Data1 = 内存地址
-//   4) W 30804 <data>     Data0 = 写数据
-//   5) W 30817 02230000   Command: cmdtype=2(AccessMem)+aamsize=2+write+transfer
-//   6) 轮询 R 30816 (Abstractcs) busy=0 且 cmderr=0
-//   7) R <addr> 读回验证（ITCM/DTCM）
-// 读内存：同序列 command=02220000（读，无 write 位），后 R 30804 读 Data0
+// Debug 访问协议（CoreAxiCSR 的 Dbg 寄存器，非标准 Debug 0x30810/0x30817 直地址）：
+//   DbgReqAddr = 0x30800  写 Debug 内部寄存器偏移（Data0=0x4 Data1=0x5 Dmcontrol=0x10
+//                         Dmstatus=0x11 Abstractcs=0x16 Command=0x17）
+//   DbgReqData = 0x30804  写数据
+//   DbgReqOp   = 0x30808  写 op（READ=1 / WRITE=2）触发访问
+//   DbgRspData = 0x30810  读结果
+//   DbgStatus  = 0x30814  写=清响应队列
 //
-// 时钟：USE_MMCM=0（clk_p 直连），BAUD=781250，BIT_NS=1280（同 tb_top）
+// 序列：
+//   1) halt 核：Dmcontrol(0x10) = 0x80000001（haltreq+dmactive），WRITE
+//   2) 轮询 Q（CSR_STATUS 0x30008）bit0=HALTED
+//   3) Access Memory 写：Data0(0x4)=数据 → Data1(0x5)=地址 → Command(0x17)=0x02230000
+//   4) 轮询 Abstractcs(0x16) busy=0 cmderr=0
+//   5) R 命令读回验证（或 Access Memory 读）
 module tb_debug_test;
     logic clk_p = 1'b0, clk_n = 1'b0;
     logic rst_btn_n = 1'b0;
@@ -31,10 +33,8 @@ module tb_debug_test;
     );
 
     always #10 clk_p = ~clk_p;
-
     localparam int BIT_NS = 1280;
 
-    // ---- TB 串口发送器（同 tb_top）----
     task send_bit(input logic b); uart_rx = b; #(BIT_NS); endtask
     task send_byte(input logic [7:0] byte_in);
         send_bit(1'b0);
@@ -45,7 +45,6 @@ module tb_debug_test;
         for (int i = 0; i < s.len(); i++) send_byte(s[i]);
     endtask
 
-    // ---- TB 串口接收器（同 tb_top）----
     logic [7:0] rx_byte_q [$];
     always begin
         @(negedge uart_tx);
@@ -62,7 +61,6 @@ module tb_debug_test;
     end
 
     int test_fail = 0;
-    string exp_str;
     logic [7:0] rx_last_byte;
 
     task automatic recv_byte();
@@ -79,59 +77,66 @@ module tb_debug_test;
         end
     endtask
 
-    // 读取一行响应（直到 \n），返回前 16 字符（addr+data）
     task automatic recv_hexline(output logic [31:0] hexval);
-        logic [7:0] b;
         logic [31:0] v = 32'h0;
-        int n = 0;
-        begin
-            for (int i = 0; i < 8; i++) begin  // 8 hex 字符 addr
-                recv_byte();
-            end
-            for (int i = 0; i < 8; i++) begin  // 8 hex 字符 data
-                recv_byte();
-                if (rx_last_byte >= "0" && rx_last_byte <= "9") v = (v << 4) | (rx_last_byte - "0");
-                else if (rx_last_byte >= "A" && rx_last_byte <= "F") v = (v << 4) | (rx_last_byte - "A" + 10);
-                else if (rx_last_byte >= "a" && rx_last_byte <= "f") v = (v << 4) | (rx_last_byte - "a" + 10);
-            end
-            hexval = v;
+        for (int i = 0; i < 8; i++) recv_byte();  // addr 8 hex
+        for (int i = 0; i < 8; i++) begin          // data 8 hex
+            recv_byte();
+            if (rx_last_byte >= "0" && rx_last_byte <= "9") v = (v << 4) | (rx_last_byte - "0");
+            else if (rx_last_byte >= "A" && rx_last_byte <= "F") v = (v << 4) | (rx_last_byte - "A" + 10);
+            else if (rx_last_byte >= "a" && rx_last_byte <= "f") v = (v << 4) | (rx_last_byte - "a" + 10);
         end
+        hexval = v;
     endtask
 
-    // 发 W 命令并等 OK
     task automatic w_cmd(input logic [31:0] addr, input logic [31:0] data);
         send_str($sformatf("W%08X%08X\n", addr, data));
         recv_expect_str("OK\n");
     endtask
-
-    // 发 R 命令读取一个 32 位字并返回 data
     task automatic r_word(input logic [31:0] addr, output logic [31:0] data);
         send_str($sformatf("R%08X01\n", addr));
         recv_hexline(data);
         recv_expect_str("OK\n");
     endtask
 
-    // Debug Access Memory 命令
-    task automatic debug_access_mem(input logic [31:0] mem_addr, input logic [31:0] data,
-                                    input logic is_write, output logic [31:0] rdata);
-        logic [31:0] v;
-        w_cmd(32'h30805, mem_addr);              // Data1 = 地址
-        if (is_write) w_cmd(32'h30804, data);    // Data0 = 写数据
-        if (is_write) w_cmd(32'h30817, 32'h02230000);  // AccessMem + aamsize=2 + write + transfer
-        else          w_cmd(32'h30817, 32'h02220000);  // AccessMem + aamsize=2 + transfer(读)
-        // 轮询 Abstractcs busy=0
-        repeat (20) begin
-            r_word(32'h30816, v);
-            if (!(v & 32'h1)) break;             // busy bit0 清除
-        end
-        // 检查 cmderr（[10:8]）
-        r_word(32'h30816, v);
-        if ((v >> 8) & 32'h7) begin
-            $display("TB: DEBUG cmderr=%0d", (v >> 8) & 7);
-            test_fail = 1;
-        end
+    // 经 Dbg 寄存器访问 Debug 内部寄存器
+    task automatic dbg_reg(input logic [31:0] reg_off, input logic [31:0] data,
+                           input bit is_write, output logic [31:0] rdata);
+        w_cmd(32'h30800, reg_off);            // DbgReqAddr = Debug 寄存器偏移
+        if (is_write) w_cmd(32'h30804, data); // DbgReqData
+        w_cmd(32'h30808, is_write ? 32'h2 : 32'h1);  // DbgReqOp = WRITE(2)/READ(1) 触发
         rdata = data;
-        if (!is_write) r_word(32'h30804, rdata); // 读结果在 Data0
+        if (!is_write) r_word(32'h30810, rdata);  // DbgRspData 读结果
+    endtask
+
+    // 轮询 Abstractcs(0x16) busy=0 且 cmderr=0
+    task automatic debug_wait_busy();
+        logic [31:0] v;
+        for (int i = 0; i < 50; i++) begin
+            dbg_reg(32'h16, 32'h0, 0, v);   // 读 Abstractcs
+            if (!(v & 32'h1)) begin          // busy 清除
+                if ((v >> 8) & 32'h7) begin
+                    $display("TB: DEBUG cmderr=%0d", (v >> 8) & 7);
+                    test_fail = 1;
+                end
+                return;
+            end
+        end
+        $display("TB: DEBUG busy 超时");
+        test_fail = 1;
+    endtask
+
+    // Access Memory 命令（经 Debug 抽象命令）
+    task automatic debug_access_mem(input logic [31:0] mem_addr, input logic [31:0] data,
+                                    input bit is_write, output logic [31:0] rdata);
+        logic [31:0] v;
+        if (is_write) dbg_reg(32'h4, data, 1, v);            // Data0 = 写数据
+        dbg_reg(32'h5, mem_addr, 1, v);                      // Data1 = 内存地址
+        if (is_write) dbg_reg(32'h17, 32'h02230000, 1, v);   // Command: AccessMem write
+        else          dbg_reg(32'h17, 32'h02220000, 1, v);   // Command: AccessMem read
+        debug_wait_busy();
+        rdata = data;
+        if (!is_write) dbg_reg(32'h4, 32'h0, 0, rdata);      // 读 Data0 = 结果
     endtask
 
     initial begin
@@ -140,11 +145,11 @@ module tb_debug_test;
         rst_btn_n = 1'b1;
         #1000;
 
-        $display("=== T016-A: Debug 抽象命令读写 TCM ===");
+        $display("=== T016-A: Debug 抽象命令读写 TCM（Dbg 寄存器协议）===");
 
-        // 1) halt 核
-        w_cmd(32'h30810, 32'h80000001);          // Dmcontrol haltreq+dmactive
-        // 轮询 halted（Q: CSR_STATUS bit0）
+        // 1) halt 核：Dmcontrol(0x10) = haltreq[31]+dmactive[0]
+        dbg_reg(32'h10, 32'h80000001, 1, got);
+        $display("TB: 写 Dmcontrol haltreq");
         begin
             int found = 0;
             for (int i = 0; i < 50 && !found; i++) begin
@@ -163,22 +168,20 @@ module tb_debug_test;
             end
         end
 
-        // 2) Debug 写 ITCM 0x0 = 0xDEADBEEF
-        debug_access_mem(32'h00000000, 32'hDEADBEEF, 1'b1, got);
-        $display("TB: Debug 写 ITCM[0x0] 完成");
-        // R 命令读回 ITCM 0x0 验证
+        // 2) Debug 写 ITCM[0x0] = 0xDEADBEEF
+        debug_access_mem(32'h00000000, 32'hDEADBEEF, 1, got);
         r_word(32'h00000000, got);
         if (got == 32'hDEADBEEF) $display("TB: PASS ITCM[0x0] 读回 = %08X", got);
         else begin $display("TB: FAIL ITCM[0x0] 读回 = %08X exp DEADBEEF", got); test_fail = 1; end
 
-        // 3) Debug 写 DTCM 0x10000 = 0x12345678
-        debug_access_mem(32'h00010000, 32'h12345678, 1'b1, got);
+        // 3) Debug 写 DTCM[0x10000] = 0x12345678
+        debug_access_mem(32'h00010000, 32'h12345678, 1, got);
         r_word(32'h00010000, got);
         if (got == 32'h12345678) $display("TB: PASS DTCM[0x10000] 读回 = %08X", got);
         else begin $display("TB: FAIL DTCM[0x10000] 读回 = %08X exp 12345678", got); test_fail = 1; end
 
-        // 4) Debug 读 ITCM（Access Memory 读路径）
-        debug_access_mem(32'h00000000, 32'h0, 1'b0, got);
+        // 4) Debug 读 ITCM（Access Memory 读）
+        debug_access_mem(32'h00000000, 32'h0, 0, got);
         if (got == 32'hDEADBEEF) $display("TB: PASS Debug 读 ITCM[0x0] = %08X", got);
         else begin $display("TB: FAIL Debug 读 ITCM[0x0] = %08X exp DEADBEEF", got); test_fail = 1; end
 
@@ -187,7 +190,6 @@ module tb_debug_test;
         $finish;
     end
 
-    // 超时保护
     initial begin
         #5_000_000;
         $display("TB: TIMEOUT");
