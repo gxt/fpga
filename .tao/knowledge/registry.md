@@ -4,7 +4,7 @@
 
 | 执行环境 | 传输命令（push 任务文件到远端） | 远端执行方 |
 | --- | --- | --- |
-| `远端 Vivado · zzx-NF5280 (202)` | **git 局域网同步为主**（202 从 201 `git pull`；202 无外网）；`synth/sync.sh`（rsync）辅助推产物 | 本机 ssh 直连执行（路径 A，无远端 opencode；拓扑见 `synth-server.md`） |
+| `远端 Vivado · zzx-NF5280 (202)` | **git 局域网同步为主**（202 从 201 `git pull`；**fpga 主仓库仅限 201 局域网 push/pull**，coralnpu submodule 及其他软件走外网）；`synth/sync.sh`（rsync）辅助推产物 | 本机 ssh 直连执行（路径 A，无远端 opencode；拓扑见 `synth-server.md`） |
 
 - 传输命令**以本表为准**（git 局域网同步 / scp / rsync），不要假设一律 rsync
 - pull（远端拉回本地）由 push 命令反推：`scp [-P port] user@host:remote_path/<file> <local_file>`
@@ -31,9 +31,10 @@
 - 工具：git 2.43.0、rsync 3.2.7、scp、Python 3.12.3；**无 bazel/bazelisk/fusesoc**（2026-08-18 实测）
 - 用途：Vivado 仿真 + 综合执行机（T008+，2026-08-20 起含 xsim 仿真）
 
-### 文件交换方式（2026-08-20 更新：git 同步为主）
+### 文件交换方式（2026-08-20 更新：git 同步为主；2026-08-20 外网已通）
 
-- **主路径**：202 fpga 目录为 git 仓库，与 201 同步（局域网 `git pull`）；coralnpu submodule 内容由 201 侧提供同步
+- **网络现状（2026-08-20 澄清）**：202 **外网已连通**（github/pypi 实测可达）；但 **fpga 主仓库 git 同步只允许经 201**（201↔202 局域网），**coralnpu submodule 及其他软件/依赖可直接外网获取**
+- **主路径（git）**：fpga 主仓库 202 从 201 `git pull`（局域网）；coralnpu submodule 走外网（github gxt/coralnpu，与 .gitmodules 一致）
 - **辅助**：`synth/sync.sh`（rsync 增量）推大产物（RTL 生成物、网表、报告）
 - 远端工作根：`~/fpga/`（git 仓库）；任务子目录与 Vivado 工程规范见 `synth-server.md` §202 工作规范
 - 交换不写密码/密钥，依赖密钥免密（BatchMode）

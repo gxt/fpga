@@ -17,7 +17,7 @@
 | 要素 | 决策 | 依据 |
 | --- | --- | --- |
 | ① 202 跑什么 | **所有 Vivado 任务**：仿真（xsim）、综合（synth）、实现（place&route）、write_bitstream。不跑 bazel/fusesoc | 202 无 bazel/fusesoc（实测）；**2026-08-20 起 xsim 仿真从 201 迁入 202**（201 内存受限 11G，202 62GiB 充裕；用户决策） |
-| ② 依赖到位方式 | **git 局域网同步为主**：202 fpga 目录为 git 仓库，从 201 pull（202 无外网）；coralnpu submodule 内容由 201 侧同步提供；`synth/sync.sh`（rsync）辅助推送大产物（RTL 生成物/网表/报告） | 202 无外网（2026-08-18 实测 pypi/github 不通），git 局域网（192.168.200.x）可达；RTL 生成（bazel）在 201 完成 |
+| ② 依赖到位方式 | **git 同步**：fpga 主仓库 202 从 201 `git pull`（局域网，主仓库仅限 201 push/pull）；coralnpu submodule 及其他软件/依赖走**外网**（2026-08-20 起外网已通）；`synth/sync.sh`（rsync）辅助推送大产物（RTL 生成物/网表/报告） | 主仓库 git 同步仅允许经 201（用户约定）；202 外网已通（2026-08-20 实测 github/pypi 可达）；RTL 生成（bazel）在 201 完成 |
 | ③ 每步执行机器 | RTL 生成（Chisel→SV）：**201** bazel；仿真/综合/实现/bitstream：**202** Vivado batch（201 ssh 直连托管）；结果（报告/bitstream/日志）**拉回 201** 分析 | 用户决策（2026-08-20）：201 除烧录/板卡连接外非特殊情况不调用 Vivado，特殊情况需咨询确认 |
 
 ## 202 工作规范（2026-08-20，用户要求）
@@ -57,7 +57,7 @@
 ## T009 实测补充（2026-08-18，官方器件基线综合）
 
 - **license 配置（关键，T010/T011 必须）**：服务器需在综合命令前 `export XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic`（Vivado_System_Edition）。T008 的 `get_parts` "RECOGNIZED" ≠ 可综合（不耗 license）；首次综合因无 license 环境变量报 `Common 17-345`。当前仅命令内 export，未持久化（如需可加入 `~/.bashrc` 或综合脚本）
-- **官方器件综合流程（实测可行）**：本机 fusesoc 2.4.3 `run --target=synth --setup` 生成工程（官方流程，参数与 `_NEXUS_NAME_MAP` 一致）→ `sync.sh push` 到服务器 → 服务器 `make synth`。服务器无外网/pip 不可装 fusesoc；本地直接 fusesoc_build 会 OOM（内存峰值 22.8G > 本机 11G）
+- **官方器件综合流程（实测可行）**：本机 fusesoc 2.4.3 `run --target=synth --setup` 生成工程（官方流程，参数与 `_NEXUS_NAME_MAP` 一致）→ `sync.sh push` 到服务器 → 服务器 `make synth`。服务器当时无外网/pip 不可装 fusesoc（**2026-08-18 历史实测；2026-08-20 起外网已通，可 pip 安装**）；本地直接 fusesoc_build 会 OOM（内存峰值 22.8G > 本机 11G）
 - **内存**：`synth_design` PSS 峰值 22811MB → **服务器（62GiB）为唯一可行综合机**
 - **ispyocto**：`ispyocto.core` 的 `../../../external/` 相对路径在非 bazel 环境需 `coralnpu/external/ispyocto` 符号链接
 - **综合结果**：xcvu13p-fhga2104-2-e，0 errors，耗时 1h25m39s，资源基线见 `synth-notes.md`
@@ -108,7 +108,7 @@
 
 | 环节 | 归属 | 依据 |
 | --- | --- | --- |
-| RTL 生成（bazel→SV） | 201（不可迁 202） | 依赖 bazel+Chisel/firtool+依赖缓存；202 无 bazel、无外网拉依赖 |
+| RTL 生成（bazel→SV） | 201（不可迁 202） | 依赖 bazel+Chisel/firtool+依赖缓存；202 无 bazel（2026-08-20 起外网已通，可装 bazelisk，但 RTL 生成职责仍归 201） |
 | 适配设计（写 RTL/XDC） | 201 | 交互式开发；elab/lint 检查可放 202 分担 |
 | 功能验证（xsim） | **202（已落实迁移）** | 202 Vivado + 62GiB；201 内存受限不跑 Vivado |
 | 工程生成（tcl/.xpr） | 202 | Vivado 执行在 202；**按任务建 .xpr 工程** |

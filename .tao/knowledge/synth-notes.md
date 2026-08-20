@@ -23,7 +23,7 @@
 
 任务文件提供了 A（服务器 fusesoc）/ B（bazel）/ C（手工 tcl）三路径，最终**采用"本机官方 fusesoc 生成工程 → 服务器 Vivado 综合"的混合路径**，理由：
 
-1. **路径 A 不可行**：服务器无外网（pypi/github 均不通）、无 pip/ensurepip，无法安装 fusesoc
+1. **路径 A 不可行**：服务器无外网（pypi/github 均不通，**2026-08-18 历史实测；2026-08-20 起外网已通**）、无 pip/ensurepip，无法安装 fusesoc
 2. **路径 B 不可行**：`fusesoc_build` 规则把 `--setup --build` 绑定，在本地 bazel 跑会直接调本机 Vivado 综合；本机仅 4 核/11G（可用 5G），xcvu13p 综合需 ~23G 内存（实测 PSS 峰值），本机必然 OOM
 3. **混合路径**（采用）：本机 pip `fusesoc==2.4.3 + edalize==0.6.1`（与 coralnpu 官方 pin 一致，见 `coralnpu/third_party/python/requirements.bzl`），用官方 core 文件与参数跑 `fusesoc run --target=synth --setup` 生成自包含 Vivado 工程（19MB），rsync 推送服务器，服务器 `make synth` 完成综合
    - 仍是官方 fusesoc 流程（非手工组工程），仅 setup/build 分机器执行；符合 T008 拓扑"服务器不跑 fusesoc/bazel，只跑 vivado"
