@@ -154,6 +154,11 @@ module tb_debug_test;
         dbg_reg(32'h10, 32'h80000001, 1, got);
         $display("TB: 写 Dmcontrol haltreq");
         begin
+            logic [31:0] dms;
+            dbg_reg(32'h11, 32'h0, 0, dms);   // 读 Dmstatus
+            $display("TB: Dmstatus=0x%08X (allhalted=%0d anyhalted=%0d)", dms, dms[31], dms[30]);
+        end
+        begin
             int found = 0;
             for (int i = 0; i < 50 && !found; i++) begin
                 send_str("Q\n");
