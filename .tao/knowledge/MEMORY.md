@@ -2,13 +2,18 @@
 
 项目状态/进展摘要。任务完成后由主会话通过 `/complete` 更新。
 
-## 当前进展（2026-08-20）
+## 当前进展（2026-08-20 现场快照）
 
-- **阶段**：Phase4 板级（待启动）
-- **机器分工（2026-08-20 调整）**：**机器201**（fpga201）= 仓库维护 + opencode + 板卡烧录/连接，**非特殊情况不调用 Vivado**（内存受限，特殊情况需咨询用户）；**机器202**（zzx-NF5280）= **所有 Vivado 任务**（xsim 仿真 + 综合/实现/bitstream），fpga 目录 git 局域网同步（主仓库仅限 201，submodule/软件走外网），任务子目录 + .xpr 工程，sudo 需用户允许
-- **Phase4 任务链（2026-08-20 拆分）**：T012（板卡烧录+连通）→ **T015**（UART host 通路+程序加载）→ **T016**（Debug 抽象命令读写 TCM，机器202 xsim 预验 + 上板）→ T013（NPU 上板功能验证）→ T014（回归收尾）
-- **下一步**：`/dispatch T015`（UART host 通路验证，需连接子板 CH341 `/dev/ttyUSB2` 串口）或先执行 **LED 引脚修正**（K25/K28/J28→AH44/AH43/AL40 低电平点亮，T013 前置，机器202 重综合）
-- 说明：Phase0-3 完成（T001-T011 已验证）；**T012 已验证**（板卡烧录成功，DONE HIGH + IDCODE + LED1 点亮）；上板 bit 就绪（`synth/out/T010-fix-clk/top_coralnpu.bit`，时钟 L4/L3 + UART AV42/AU42 修正版）
+- **阶段**：Phase4 板级 · 方案 A（host_tcm 直写 ITCM）调试中
+- **主线**：T015 阻塞（host 经 AXI 写 ITCM 上板 SLVERR + 连续命令卡，仿真不可复现）。**方案 A**：改 CoreMiniAxi 加 host_tcm 直写端口（绕过 AXI），已实现并综合，**新 bit `T010-hosttcm` 已烧录上板，待 SW1 复位后测试 ITCM 直写**（应不再卡）
+- **下一步**：① 提醒复位（每次需用户确认）→ ② `sg dialout` 跑 `sim/uart_slow_test.py` 验证 ITCM 直写连续写 → ③ R 读回验证
+- **改动**：coralnpu fork `d74e0ac8`（CoreAxi host_tcm 端口，ITCM arbiter 4 端口）；主仓库 `72a4fae`（host_cmd_fsm W 写 ITCM 走直写）/`b4e6dcd`/`f30457f`
+- **环境**：bazel 需 `CC=clang-14`（Ubuntu 24.04 clang-18 modules 不兼容）；串口 `ttyUSB0`（CH341）需 `sg dialout`；`/tools/Xilinx/2025.1` Vivado
+- **详细调试过程**：`.tao/knowledge/board-debug-log.md`（T015/T016 全部调试、host_tcm 现场、工具/坑、恢复步骤）
+
+**机器分工**：机器201 = 仓库维护/opencode/板卡烧录；机器202 = 所有 Vivado 任务（xsim/综合/bitstream），git 局域网同步（fetch-then-pull），sudo 需用户允许。
+**Phase4 任务链**：T012（已验证）→ T015（阻塞，方案A中）→ T016（阶段A过/阶段B Debug 上板未生效）→ T013（前置 LED 修正）→ T014。
+**上板纪律**：复位必先提醒+等确认；脚本 201 编写→git→202 执行；SRAM 复位不清。
 
 | 日期 | 项目/模块 | 状态 | 备注 |
 | --- | --- | --- | --- |
