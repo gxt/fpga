@@ -16,13 +16,26 @@
 4. 若加载失败，记录排查过程与根因，返回 T010 调整
 
 ## 完成区
-**状态**：待开始
-**Commit**：
+**状态**：待验收（烧录与连通性验证完成）
+**Commit**：无（脚本 `synth/tcl/program_top.tcl` 待主会话提交）
 **测试结果**：
+- Vivado Hardware Manager（机器201，batch）连接 cable `Digilent SULEE2211346A`，识别器件 `xc7v2000t_0`（PART xc7v2000t）
+- IDCODE `00100011011010110011000010010011`（有效）
+- `program_hw_devices` 加载 `T010-fix-clk/top_coralnpu.bit` 成功（32s），**`End of startup status: HIGH`（DONE 拉高）**
+- **LED1（F1_DONE）点亮**（用户人工观察确认）
 **修改文件**：
+- 新建 `synth/tcl/program_top.tcl`（Hardware Manager 烧录/识别脚本，probe/program 两模式）
 **验收结果**：
+1. ✅ 识别器件并成功加载 T010 修正后 bit，无错误（DONE HIGH）
+2. ✅ IDCODE 正确（xc7v2000t）+ LED1/F1_DONE 点亮
+3. 加载方式 JTAG J24（Digilent cable）、耗时 32s、外部连接：SW1 复位 / s2cclk_1(L4/L3) 100MHz 时钟 / 供电
+4. ✅ 无失败
 **新发现/坑**：
+- `verify_hw_devices` 需 `.msk` mask 文件（build_top.tcl 未生成），已加 catch 容错（烧录本身成功，verify 可选）
+- `get_property STATE` 在烧录前不可用（已移到烧录后 catch）
+- **LED 引脚待修正（T013 前）**：设计内 led_halted/fault/locked（K25/K28/J28，高电平点亮）与硬件工程师子板 GPIO LED（AH44/AH43/AL40，低电平点亮）不符
 **遗留问题**：
+- LED 引脚修正（XDC → AH44/AH43/AL40 + 极性反相，机器202 重综合）留待 T013 前执行
 
 ## 审阅记录
 

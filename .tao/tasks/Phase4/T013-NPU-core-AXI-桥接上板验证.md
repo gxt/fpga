@@ -4,7 +4,7 @@
 **执行环境**：机器201（机器201直接连接板卡）＋ 机器202（综合产物）
 
 ## 接口规范
-- 输入：T010 bitstream（core_mini_axi + AXI 桥接版本）；T012 验证的板卡环境；**T015 验证的 UART host 通路（host 方案已定 = UART 状态机主控，T010 决策 + T015 落实，本任务不再细化 host 方案）**；T007 自定义测试程序（同一 ELF 上板对照）
+- 输入：T010 bitstream（core_mini_axi + AXI 桥接版本）；T012 验证的板卡环境；**T015 验证的 UART host 通路（host 方案已定 = UART 状态机主控，T010 决策 + T015 落实，本任务不再细化 host 方案）**；T007 自定义测试程序（同一 ELF 上板对照）；**前置：LED 引脚修正（led_halted/fault/locked → AH44/AH43/AL40 低电平点亮，硬件工程师 2026-08-20，需机器202 重综合）**
 - 输出：上板运行 NPU 程序并回读/观察结果；与 RTL 仿真结果对照记录（`.tao/knowledge/board-notes.md`）
 - 约束：集成方式遵循 ADR-004（NPU core + AXI 桥接，不做完整 SoC）；host 侧驱动方式 = **UART 状态机主控（已定，见 T015）**
 
