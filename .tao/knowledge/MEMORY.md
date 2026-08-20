@@ -7,8 +7,8 @@
 - **阶段**：Phase4 板级（待启动）
 - **机器分工（2026-08-20 调整）**：**机器201**（fpga201）= 仓库维护 + opencode + 板卡烧录/连接，**非特殊情况不调用 Vivado**（内存受限，特殊情况需咨询用户）；**机器202**（zzx-NF5280）= **所有 Vivado 任务**（xsim 仿真 + 综合/实现/bitstream），fpga 目录 git 局域网同步（主仓库仅限 201，submodule/软件走外网），任务子目录 + .xpr 工程，sudo 需用户允许
 - **Phase4 任务链（2026-08-20 拆分）**：T012（板卡烧录+连通）→ **T015**（UART host 通路+程序加载）→ **T016**（Debug 抽象命令读写 TCM，机器202 xsim 预验 + 上板）→ T013（NPU 上板功能验证）→ T014（回归收尾）
-- **下一步**：`/dispatch T012`（板卡加载 bitstream，机器201 侧 Hardware Manager 烧录）；需确认 OSC1 实际频率与 RS232 线缆
-- 说明：Phase0-3 完成（T001-T011 已验证）；上板 bitstream 就绪（`synth/out/T010/top_coralnpu.bit`）
+- **下一步**：`/dispatch T015`（UART host 通路验证，需连接子板 CH341 `/dev/ttyUSB2` 串口）或先执行 **LED 引脚修正**（K25/K28/J28→AH44/AH43/AL40 低电平点亮，T013 前置，机器202 重综合）
+- 说明：Phase0-3 完成（T001-T011 已验证）；**T012 已验证**（板卡烧录成功，DONE HIGH + IDCODE + LED1 点亮）；上板 bit 就绪（`synth/out/T010-fix-clk/top_coralnpu.bit`，时钟 L4/L3 + UART AV42/AU42 修正版）
 
 | 日期 | 项目/模块 | 状态 | 备注 |
 | --- | --- | --- | --- |
