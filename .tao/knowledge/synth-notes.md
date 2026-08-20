@@ -419,3 +419,10 @@ Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
 - **DTCM(0x10000) 为 DMEM（dbus 数据口），不在 ibus 取指路径**——程序不能放 DTCM 执行
 - **结论**：程序必须在 ITCM(0x0)；加载必须写 ITCM；「程序放 DTCM」方案不可行
 - 加载候选：① host W 写 ITCM（上板复位窗口，不稳定）；② 上板 Debug 写 ITCM（当前不工作，待排查）；③ 排查上板 host 写 ITCM SLVERR 根因（复位后核状态/CSR_CTRL 控制）
+
+### 上板 host 写 ITCM 根因排查（2026-08-20，多轮复位诊断）
+
+- **确认**：复位后 resetReg=3（bit0=Reset active high + bit1=clock gate）——**核复位+时钟门控，不取指**，排除"核运行冲突"假设；SW1 复位不清 SRAM（读回旧值 1/2/3 属正常）
+- **核心问题**：host 连续命令后卡住（空/ERR 响应）——单命令（?/单字 W）稳定，连续写 DTCM/ITCM 首个即失败；写 CTRL=1（时钟开）后仍卡
+- **根因方向**：host_cmd_fsm 连续 AXI 写事务上板时序（XW_AW→XW_W→XW_B 状态机，疑 B 响应/握手上板异常）；或时钟门控对 host/ITCM 影响
+- **下一步**：RTL 分析 host_cmd_fsm 连续命令卡根因（本地可查）+ 仿真重现，避免上板盲试
