@@ -29,6 +29,30 @@
 
 > 若后续 T009 官方器件（xcvu13p）走 fusesoc 完整流程需要机器202 bazel，可作为增强项评估（需在机器202装 bazelisk 并冷拉依赖，预计与机器201同等量级耗时），当前不启用。
 
+## 202 任务 git 同步流程（2026-08-20 用户确认）
+
+**原则**：git 只能同步 commit（不能同步未提交改动）；主仓库只从 201 push/pull（202 不 push）；Vivado 产物与 git 并行不冲突。
+
+### 任务启动前
+1. **201 git 仓库干净**：`git status` 无未提交改动；有则先提交并 `git push origin master`
+2. **同步给 202**：202 `cd ~/fpga && git pull origin master`（origin = 201 局域网）；submodule 如有更新 `git submodule update`
+
+### 任务执行中（202）
+- 可修改 git 受管文件（`.tao/`、`synth/`、`sim/` 等）
+- Vivado 产物（`work/`、`rtl_out/`、`synth/out/`）在 .gitignore，**不走 git**，经 `synth/sync.sh` rsync 回传
+
+### 任务完成后
+1. **202 提醒用户**（经 201 会话汇报）：变更清单 = git 受管改动（文件 + 类型）+ Vivado 产物（work/ 路径/大小）+ 待清理临时文件
+2. **用户决定是否提交**：确认哪些改动该提交；临时文件先清理
+3. **202 本地 commit**（用户确认后，提交信息按 git-commit 规范，可标注「（机器202）」区分执行机）
+4. **201 拉取**：201 `git pull fpga202 master`（`fpga202` remote 已配置 = `gxt@192.168.200.202:/home/gxt/fpga`；**201 发起 pull，202 不 push**）
+5. **201 审查并推送**：确认提交内容后 `git push origin master`；202 后续 pull 保持同步
+
+### 约束
+- 双向"干净"前置：启动 202 任务前 201 干净；201 拉取 202 前 201 也须干净（避免未提交改动干扰 pull）
+- 202 不直接 push 到 201 仓库（主仓库操作从 201 发起）
+- 202 commit 署名建议与 201 一致（`gxt@gxt@pku.edu.cn`），历史可读
+
 ## 文件交换（2026-08-20 更新：git 同步为主）
 
 - **主路径（git）**：202 fpga 目录为 git 仓库，与 201 同步（局域网 `git pull`；coralnpu submodule 内容由 201 侧同步提供）——小文件/源码/文档走 git
