@@ -64,7 +64,12 @@ module host_cmd_fsm (
     input  logic [127:0] s_rdata,
     input  logic [5:0]  s_rid,
     input  logic [1:0]  s_rresp,
-    input  logic        s_rlast
+    input  logic        s_rlast,
+    // ---- Direct host TCM write port (bypass AXI, for ITCM loading) ----
+    output logic        host_tcm_write_valid,
+    output logic [31:0] host_tcm_write_addr,
+    output logic [127:0] host_tcm_write_data,
+    output logic [15:0] host_tcm_write_strb
 );
     // ---- 常量 ----
     localparam logic [5:0] AXI_ID        = 6'd0;
@@ -92,6 +97,7 @@ module host_cmd_fsm (
         P_R_ADDR, P_R_CNT,           // R 命令参数收集
         P_END,                       // 等待行结束符
         XW_AW, XW_W, XW_B,           // AXI 写事务
+        XW_HOST,                     // Direct TCM 直写（ITCM 加载，绕过 AXI）
         XR_AR, XR_R,                 // AXI 读事务
         BOOT_NEXT,                   // S 序列下一步
         TX_OK, TX_ERR, TX_HELP,      // 文本应答
@@ -236,6 +242,10 @@ module host_cmd_fsm (
             cmd_is_boot <= 1'b0;
             tx_req      <= 1'b0;
             tx_byte     <= '0;
+            host_tcm_write_valid <= 1'b0;
+            host_tcm_write_addr  <= '0;
+            host_tcm_write_data  <= '0;
+            host_tcm_write_strb  <= '0;
         end else begin
             // TX 字节被 uart_tx 接受后清除请求（在 TX 状态下发字节用同拍置位覆盖）
             if (tx_valid) begin
@@ -334,7 +344,13 @@ module host_cmd_fsm (
                     if (rx_valid) begin
                         if (rx_data == "\n" || rx_data == "\r") begin
                             case (cmd_kind)
-                                3'd0: state <= XW_AW;                      // W
+                                3'd0: begin                                // W
+                                    if (cmd_addr < 32'h00002000) begin
+                                        state <= XW_HOST;                  // ITCM 直写（绕过 AXI）
+                                    end else begin
+                                        state <= XW_AW;                    // DTCM/CSR 走 AXI
+                                    end
+                                end
                                 3'd1: state <= XR_AR;                      // R
                                 3'd2: begin                                // S
                                     cmd_is_boot <= 1'b1;
@@ -358,6 +374,19 @@ module host_cmd_fsm (
                 // ---- AXI 写事务 ----
                 XW_AW: begin
                     if (s_awvalid_r && s_awready) state <= XW_W;
+                end
+                // ---- Direct TCM 直写（ITCM 加载，绕过 AXI；valid-only 一拍） ----
+                XW_HOST: begin
+                    if (!host_tcm_write_valid) begin
+                        host_tcm_write_valid <= 1'b1;
+                        host_tcm_write_addr  <= cmd_addr;
+                        host_tcm_write_data  <= {96'd0, cmd_data} << (w_lane * 8);
+                        host_tcm_write_strb  <= 16'h000F << w_lane;
+                    end else begin
+                        host_tcm_write_valid <= 1'b0;
+                        state  <= TX_OK;
+                        tx_cnt <= '0;
+                    end
                 end
                 XW_W: begin
                     if (s_wvalid_r && s_wready) state <= XW_B;
