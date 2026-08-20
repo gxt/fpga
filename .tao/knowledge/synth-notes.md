@@ -123,7 +123,7 @@ nohup make synth > T009-synth2.log 2>&1 &
     | JTAG debug_bridge | 复用 J24 下载链 | 需 debug_bridge + AXI 宽度/协议转换 IP；纯 FPGA（无 PS）下 xsct/hw_server 对 BSCAN 桥的访问流非标准、集成风险高 | 拒绝（host 侧流程不确定性大） |
     | **UART 状态机主控** | 自包含 RTL（~400 行）、host 端任意串口脚本、协议可控可测 | RS232 接口可用性待 T012 现场确认 | **采用** |
   - **影响**：AXI 桥接顶层 = 命令 FSM（UART→AXI 单拍读写）+ uart_rx/tx；host 侧 = 任何 PC 串口（Python pyserial 脚本，T013 提供）；**不引入任何 Xilinx IP**（时钟用 MMCME2_BASE 原语，全功能 license 已覆盖 xc7v2000t，无需新 IP/license）。
-  - 待确认（T012）：RS232 线缆/DB9 转 USB 可用性；OSC1 实际振荡器频率。
+  - 待确认（T012）：RS232 线缆/DB9 转 USB 可用性；~~OSC1 实际振荡器频率~~ **（2026-08-20 已确认：OSC1(W4/W3)=48MHz 废弃；正确 100MHz 差分时钟 = L4/L3（s2cclk_1/JG），见下"T010 时钟源修正"）**。
 
 ### AXI 桥接顶层设计（主仓库 `synth/rtl/`）
 
@@ -172,7 +172,10 @@ nohup make synth > T009-synth2.log 2>&1 &
 
 - 源：OSC1（W4/W3，默认 LVDS 差分）→ IBUFDS → **MMCME2_BASE**（原语，非 IP）→ BUFG → clk_core。
 - 参数：假定输入 100MHz → M=12/D=1/OUT0=24 → 50MHz。`top_coralnpu` 参数 `CLK_IN_HZ/CORE_CLK_HZ/BAUD` 与 XDC `create_clock -period 10.0` 是唯一时钟配置点。
-- **待确认项（T012）**：OSC1 实际振荡器频率未知（手册未标注，振荡器为用户安装件）。若实际≠100MHz：改 MMCM M/D/OUT 参数 + create_clock period 后重跑（小设计重跑约 10-30 分钟）；也可改用 TAI Player 可编程时钟（频率由软件设定）或用单端 IBUF（`USE_DIFF_CLK=0`）。
+- **⚠️ T010 时钟源修正（2026-08-20 资料核实）**：T010 用 W4/W3（OSC1）按 100MHz 假定是**错误的**——**OSC1(W4/W3)=48MHz**（DualV7 实测，已废弃）；**正确的 100MHz 差分时钟是 L4(P)/L3(N)**（JG1/JG2 · s2cclk_1，`V7-FPGA-HW-Description.md`，XDC `create_clock -period 10.000 [get_ports clk_p]`）。
+  - **修正方案（机器202 重新综合）**：XDC 引脚 W4/W3 → **L4/L3**（IBUFDS LVDS，`IO_L14N/P_T2_MRCC_36` 级），`top_coralnpu.sv` 时钟注释/参数同步；MMCM 参数不变（仍按 100MHz 输入 → 40MHz 输出，若维持 CORE_CLK 40MHz 则 OUT0 不变）；重跑 synth/impl/bitstream（约 30-40 分钟）。
+  - 备选：保持 W4/W3 但按 48MHz 重配 MMCM（输出 19.2MHz，频率偏低不建议）；或单端 IBUF（`USE_DIFF_CLK=0`，需另一引脚）。
+- **待确认项（T012）**：RS232 线缆（J26，TTL 转 USB 或 DB9）；OSC1 已不再需要（改用 L4/L3 100MHz）。
 - xsim 验证发现 MMCM 仿真模型输出周期与理论有偏差（VCO 爬升），已加 `USE_MMCM` 参数（0=clk_p 直连）供仿真/调试绕过。
 
 ### 构建流程（非工程 batch，机器202）
