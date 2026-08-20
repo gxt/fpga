@@ -2,11 +2,12 @@
 
 项目状态/进展摘要。任务完成后由主会话通过 `/complete` 更新。
 
-## 当前进展（2026-08-18）
+## 当前进展（2026-08-20）
 
-- **阶段**：Phase3 综合（完成）→ Phase4 板级
-- **下一步**：`/dispatch T012`（板卡加载 bitstream 与连通性验证，需本机连板卡 + JTAG cable；**需确认 OSC1 实际频率与 RS232 线缆**）
-- 说明：Phase0-3 全部完成（T001-T011 已验证）；**上板 bitstream 就绪**（`synth/out/T010/top_coralnpu.bit`）；资源分析已沉淀（xc7v2000t LUT 3.56%，与 xcvu13p 基线对比）；服务器 license `XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic`
+- **阶段**：Phase4 板级（待启动）
+- **机器分工（2026-08-20 调整）**：**201**（本机 fpga201）= 仓库维护 + opencode + 板卡烧录/连接，**非特殊情况不调用 Vivado**（内存受限，特殊情况需咨询用户）；**202**（zzx-NF5280）= **所有 Vivado 任务**（xsim 仿真 + 综合/实现/bitstream），fpga 目录 git 局域网同步，任务子目录 + .xpr 工程，sudo 需用户允许
+- **下一步**：`/dispatch T012`（板卡加载 bitstream，201 侧 Hardware Manager 烧录）；需确认 OSC1 实际频率与 RS232 线缆
+- 说明：Phase0-3 完成（T001-T011 已验证）；上板 bitstream 就绪（`synth/out/T010/top_coralnpu.bit`）；Debug 抽象命令读写 TCM 验证待定（阶段 A xsim 可在 202 执行）
 
 | 日期 | 项目/模块 | 状态 | 备注 |
 | --- | --- | --- | --- |

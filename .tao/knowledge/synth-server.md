@@ -10,22 +10,29 @@
   - **不在远程部署 opencode**，不启用「远端智能体」路由
   - 若后续长综合迭代拉日志往返频繁，再评估升级路径 B（远程 opencode，待用户再决策）
 
-## 执行拓扑三要素（T008 确定，2026-08-18）
+## 执行拓扑三要素（2026-08-20 调整：xsim 仿真迁入 202）
 
-**结论：同步工程后纯 Vivado —— 本地生成/推送 RTL，服务器只跑 synth/impl/bitstream**
+**结论：202 = Vivado 专属执行机（仿真 + 综合 + 实现 + bitstream）；201 = 仓库维护 + opencode + 板卡烧录（非特殊情况不调用 Vivado）**
 
 | 要素 | 决策 | 依据 |
 | --- | --- | --- |
-| ① 服务器跑什么 | **同步工程后纯 Vivado**：服务器不跑 bazel/fusesoc，只接受本地推送的 RTL（SystemVerilog）与工程，跑 `vivado -mode batch`（synth/impl/write_bitstream） | 实测服务器无 bazel/bazelisk/fusesoc、无 bazel 缓存（2026-08-18 `which bazel fusesoc` 为空）；装 bazel 全家桶 + 首次拉依赖成本高（本地 8.9G+，含 Chisel/verilator 等仿真依赖，综合并不需要）；T009 约束允许 fusesoc 不可用时走手工组工程偏离路径；ADR-002 决策 4 目标器件走 core_mini_axi 纯 SV |
-| ② 依赖到位方式 | **本地 bazel 产物推送**：RTL 在本地 `bazel build //hdl/chisel/src/coralnpu:<key>_emit_verilog` 生成 `.sv/.h/.zip`，`synth/sync.sh push rtl <key>` scp/rsync 推送远端 `~/fpga/rtl_out/<key>/`；服务器不自拉 bazel 缓存。第三方依赖（RISC-V 工具链、IP）不需要到服务器——服务器只碰 SV 与 Vivado 自带 IP | RTL 生成是纯宿主侧流程（Chisel→firtool→SV，见 coralnpu-build-map.md §1）；综合/实现不需要工具链与仿真依赖 |
-| ③ 每步执行机器 | RTL 生成（Chisel→SV）：**本地** bazel；综合（synthesis）、实现（place&route）、bitstream：**远端** Vivado batch（本机 ssh 直连 / `sync.sh exec` 托管）；结果（报告/bitstream/日志）**拉回本地**分析 | ADR-002 决策 2：本机不承担综合主责，本机 Vivado 仅辅助（工程查看/报告分析/IP 预生成） |
+| ① 202 跑什么 | **所有 Vivado 任务**：仿真（xsim）、综合（synth）、实现（place&route）、write_bitstream。不跑 bazel/fusesoc | 202 无 bazel/fusesoc（实测）；**2026-08-20 起 xsim 仿真从 201 迁入 202**（201 内存受限 11G，202 62GiB 充裕；用户决策） |
+| ② 依赖到位方式 | **git 局域网同步为主**：202 fpga 目录为 git 仓库，从 201 pull（202 无外网）；coralnpu submodule 内容由 201 侧同步提供；`synth/sync.sh`（rsync）辅助推送大产物（RTL 生成物/网表/报告） | 202 无外网（2026-08-18 实测 pypi/github 不通），git 局域网（192.168.200.x）可达；RTL 生成（bazel）在 201 完成 |
+| ③ 每步执行机器 | RTL 生成（Chisel→SV）：**201** bazel；仿真/综合/实现/bitstream：**202** Vivado batch（201 ssh 直连托管）；结果（报告/bitstream/日志）**拉回 201** 分析 | 用户决策（2026-08-20）：201 除烧录/板卡连接外非特殊情况不调用 Vivado，特殊情况需咨询确认 |
+
+## 202 工作规范（2026-08-20，用户要求）
+
+1. **fpga 目录 git 化**：202 `~/fpga/` 为 git 仓库，与 201 保持一致并同步（局域网 `git pull`；coralnpu submodule 内容由 201 侧提供）
+2. **任务子目录 + Vivado 工程**：针对具体任务创建子目录（如 `~/fpga/work/<T0xx>/`），**尽可能创建 Vivado 工程文件（.xpr）**（非仅 batch tcl），便于工程化管理与复用
+3. **sudo 约束**：202 上所有 `sudo` 命令必须经过用户允许（不得擅自执行）
+4. 长任务（仿真/综合）用 tmux/nohup 托管，日志拉回 201 分析
 
 > 若后续 T009 官方器件（xcvu13p）走 fusesoc 完整流程需要服务器 bazel，可作为增强项评估（需在服务器装 bazelisk 并冷拉依赖，预计与本地同等量级耗时），当前不启用。
 
-## 文件交换
+## 文件交换（2026-08-20 更新：git 同步为主）
 
-- **标准入口：主仓库 `synth/sync.sh`**（从 registry.md 自动解析服务器地址，`info/push src/push rtl <key>/push synth/pull/exec`）
-- 以 rsync 增量为主、scp 单文件为辅（传输命令与远端布局见 `registry.md` 与 `synth/README.md`）：本机推送 coralnpu 源码（`push src`）/ RTL 产物（`push rtl <key>`，远端 `~/fpga/rtl_out/<key>/`）/ 工程 → 远程；远程结果（`~/fpga/work/`）拉回本机 `synth/out/`
+- **主路径（git）**：202 fpga 目录为 git 仓库，与 201 同步（局域网 `git pull`；coralnpu submodule 内容由 201 侧同步提供）——小文件/源码/文档走 git
+- **辅助（sync.sh）**：大产物（RTL 生成物 `.sv/.h/.zip`、网表、报告、bitstream）用 `synth/sync.sh push/pull`（rsync 增量）推 202 `~/fpga/rtl_out/<key>/`、`~/fpga/work/` 拉回 201 `synth/out/`
 - 不把密码/密钥写入脚本或任务文件（ssh 依赖密钥免密，BatchMode）
 
 ## 关键命令记录（T008 实测）
@@ -91,19 +98,19 @@
 - **本地 xsim**：编译 `CoreMiniAxi.sv`（39835 行 firtool 产物）+ 顶层 + tb，VSS 虚拟内存峰值可达十几 GB；本机 11G（可用 6.5G）跑通**无 OOM**（VSS 高、PSS 常驻可控）
 - **设计规模**：Slice LUT 43,439（3.56%）、RAMB36 10、DSP48E1 6、IOB 8、MMCM 1
 
-### 职责划分（当前，可能调整）
+### 职责划分（2026-08-20 调整，用户决策）
 
-- **当前**：RTL 生成 + 功能验证（xsim）= 本地；综合/实现/bitstream = 服务器
-- **xsim 归属本地的原因**：① RTL 迭代开发紧邻源码，改码→仿真循环快；② 职责划分（T008 拓扑：综合实现归服务器）；③ 本机 xsim 实测无 OOM
-- **⚠️ 可能调整**：后续**增加更多 IP（如时钟向导、UART 外设 IP、DDR/PCIe 等）**后，设计规模与内存需求上升，可能触发调整：a) 大型仿真挪服务器跑（62GiB 内存更充裕）；b) 增加本机内存；c) IP 预生成职责变化。届时重新评估并更新本节
+- **当前**：RTL 生成（bazel）+ 仓库维护 + opencode + **板卡烧录** = **201**；**所有 Vivado 任务（xsim 仿真 + 综合/实现/bitstream）** = **202**
+- **2026-08-20 变化**：① **xsim 仿真从 201 迁入 202**（原"xsim 归属本地"的 ③"本机无 OOM"不再成立——用户决策以 202 为 Vivado 专属机，201 受内存限制）；② 201 除烧录 bit/板卡连接外**非特殊情况不调用 Vivado**（特殊情况需咨询用户确认）
+- **202 工作规范**：git 局域网同步 + 任务子目录 + .xpr 工程 + sudo 需用户允许（见上文「202 工作规范」）
 
-### 各环节可迁移性分析（2026-08-18，T010 后评估）
+### 各环节可迁移性分析（2026-08-18 评估，2026-08-20 落实）
 
-| 环节 | 可否放服务器 | 依据 |
+| 环节 | 归属 | 依据 |
 | --- | --- | --- |
-| RTL 生成（bazel→SV） | ❌ 不可 | 依赖 bazel+Chisel/firtool+依赖缓存；服务器无 bazel、无外网拉依赖；一次性产物，收益低（除非装 bazelisk 增强项） |
-| 适配设计（写 RTL/XDC） | ⚠️ 技术上可、不推荐 | 交互式开发，服务器编辑同步低效；但 **elab/lint 检查可挪服务器**（有 Vivado，内存充裕） |
-| 功能验证（xsim） | ✅ 最值得放 | 服务器 Vivado + 62GiB（xsim 编译巨型 SV 内存大，本地 11G 紧张）；代价是迭代变慢，**适合设计定型后的回归/大规模验证** |
-| 工程生成（tcl 执行） | ✅ 已在服务器 | 执行 `vivado -source` 已在服务器；仅写 tcl 是本地开发；fusesoc setup（T009）因服务器无 fusesoc 只能本地 |
+| RTL 生成（bazel→SV） | 201（不可迁 202） | 依赖 bazel+Chisel/firtool+依赖缓存；202 无 bazel、无外网拉依赖 |
+| 适配设计（写 RTL/XDC） | 201 | 交互式开发；elab/lint 检查可放 202 分担 |
+| 功能验证（xsim） | **202（已落实迁移）** | 202 Vivado + 62GiB；201 内存受限不跑 Vivado |
+| 工程生成（tcl/.xpr） | 202 | Vivado 执行在 202；**按任务建 .xpr 工程** |
 
-**趋势**：新增 IP → 仿真/综合内存需求↑ → 服务器（62GiB）资源优势↑ → 验证环节逐步右移服务器。
+**趋势**：新增 IP → 仿真/综合内存需求↑ → 202（62GiB）独占 Vivado 职责，201 专注仓库/维护/烧录。

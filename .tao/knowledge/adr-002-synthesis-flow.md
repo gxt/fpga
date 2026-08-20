@@ -1,7 +1,7 @@
 # ADR-002: 综合流程选择（fusesoc + Vivado，远程服务器执行）
 
 - 状态：已接受
-- 日期：2026-08-16（2026-08-16 修订：明确 T009 官方器件综合为资源基线用途；T010 目标器件路径改走 core_mini_axi，与 ADR-004 一致）
+- 日期：2026-08-16（2026-08-16 修订：明确 T009 官方器件综合为资源基线用途；T010 目标器件路径改走 core_mini_axi，与 ADR-004 一致；2026-08-20 修订：Vivado 职责全迁 202，201 非特殊情况不调用 Vivado）
 - 相关任务：T008、T009、T010、T011
 
 ## 背景
@@ -15,17 +15,17 @@ coralnpu `fpga/` 目录已提供完整的综合基础设施：
 
 环境事实：
 
-- 本机已装 Vivado 2025.1（`/tools/Xilinx/2025.1/Vivado/bin/vivado`），但**用户指定综合须在远程服务器执行**（本机不承担综合主责），本机 Vivado 仅辅助。
+- 201（本机 fpga201）已装 Vivado 2025.1，但**用户指定所有 Vivado 任务在 202 执行**（2026-08-20 调整：201 受内存限制，除烧录 bit/板卡连接外**非特殊情况不调用 Vivado**，特殊情况需咨询用户确认）。
 - 本地上板器件与官方 xcvu13p 不同，需要 XDC/时钟/IP 适配。
-- 远程服务器已确认（`gxt@192.168.200.202`、Vivado v2025.1 与本地一致，见 `.tao/knowledge/registry.md`），文件交换方式由 T008 阶段确认。
+- 202 已确认（`gxt@192.168.200.202`、Vivado v2025.1 与本地一致，见 `.tao/knowledge/registry.md`），承担**仿真 + 综合 + 实现 + bitstream**；202 fpga 目录 git 化（局域网同步）。
 
 ## 决策
 
 1. **综合流程采用官方 fusesoc 生成 Vivado 工程的方式**：优先复用上游 core 文件与 tcl hooks，不重写整套 tcl。
-2. **综合执行环境为远程服务器**：本机负责 RTL 生成（bazel）、文件同步、结果拉取与报告分析；本机 Vivado 仅做辅助（工程查看、报告查看、IP 预生成）。
+2. **Vivado 执行环境为 202**：201 负责 RTL 生成（bazel）、仓库维护、opencode、板卡烧录与连接；**仿真（xsim）与综合/实现/bitstream 全部在 202 执行**（2026-08-20 起）；201 非特殊情况不调用 Vivado（特殊情况咨询用户确认）。
 3. **官方器件综合（T009，xcvu13p chip_nexus 路径）仅作资源基线**：验证 fusesoc+Vivado 链路可用性，其资源/时序报告作为对比基线，不用于上板。
-4. **目标器件适配（T010）改走 `core_mini_axi` + AXI 桥接顶层**（与 ADR-004 一致，不做完整 SoC 移植）：core_mini_axi 由 bazel 生成 SystemVerilog（`//hdl/chisel/src/coralnpu:core_mini_axi_cc_library`），AXI 桥接顶层与 XDC/时钟/IP 适配放主仓库 `synth/` 下；官方 `fpga/` 中无 core_mini_axi 现成 fusesoc core，需自建轻量 core/顶层（放主仓库），或直接纯 Vivado 工程，T008 执行拓扑阶段确定。
-5. 板级任务（T012+）以上板验证为目标，综合验收以 bitstream + 资源/时序报告为准。
+4. **目标器件适配（T010）改走 `core_mini_axi` + AXI 桥接顶层**（与 ADR-004 一致，不做完整 SoC 移植）：core_mini_axi 由 bazel 生成 SystemVerilog（`//hdl/chisel/src/coralnpu:core_mini_axi_cc_library`），AXI 桥接顶层与 XDC/时钟/IP 适配放主仓库 `synth/` 下；官方 `fpga/` 中无 core_mini_axi 现成 fusesoc core，需自建轻量 core/顶层（放主仓库），或直接纯 Vivado 工程。
+5. 板级任务（T012+）以上板验证为目标，综合验收以 bitstream + 资源/时序报告为准；202 上按任务建子目录并尽可能创建 `.xpr` 工程。
 
 ## 影响
 

@@ -2,6 +2,12 @@
 
 本仓库用于 FPGA 相关的开发，覆盖从模拟（simulation）到综合（synthesis）的完整流程。
 
+## 机器分工（2026-08-20 调整）
+
+- **201**（本机 fpga201，192.168.200.201）：fpga 仓库维护、opencode 运行、**板卡烧录与连接**（Vivado Hardware Manager）。**非特殊情况不调用 Vivado**（内存受限 11G），特殊情况需咨询用户确认。
+- **202**（zzx-NF5280，192.168.200.202）：**所有 Vivado 任务**——仿真（xsim）、综合、实现、bitstream。fpga 目录 git 局域网同步（202 无外网）；按任务建子目录并尽可能创建 `.xpr` 工程；**sudo 命令必须经用户允许**。
+- 详见 `.tao/knowledge/registry.md`（路由）与 `synth-server.md`（拓扑）。
+
 ## 仓库结构
 
 ```
