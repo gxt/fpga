@@ -1,0 +1,13 @@
+release=dualv7-r3-z2m-busybox-netboot
+date=2026-05-17
+bit=/home/data/vivado-risc-v/workspace/release-r3-z2m-busybox/rocket64z2m-r3.bit
+bit_sha256=655d7dac2fa2ede5858ccf27038d246da4a4652122262a64509cb15d1690bc38
+boot_elf=/home/data/vivado-risc-v/workspace/release-r3-z2m-busybox/boot-r3.elf
+boot_elf_sha256=bef224570468ce4c4f0486ca0c4f58c302970ffcff5e1d8b30be53feb39081e9
+image=/home/data/vivado-risc-v/linux-stable/arch/riscv/boot/Image
+image_sha256=e228bb35d02c84fc5878b45ac1d5f3ffbdfee7c13af07432b21a1e3797a0f553
+busybox=/home/data/vivado-risc-v/workspace/release-r2-busybox/nfsroot/bin/busybox
+busybox_sha256=aed8a697d1d6fdf475be9948239491ac396b1629ddb4847ce6f3f48f874bd63e
+nfsroot=/home/data/vivado-risc-v/workspace/release-r2-busybox/nfsroot
+uart_log=/home/data/vivado-risc-v/workspace/dualv7-test/068x/uart-z2m-busybox.log
+busybox_proof_log=/home/data/vivado-risc-v/workspace/dualv7-test/068x/busybox-shell-proof.log

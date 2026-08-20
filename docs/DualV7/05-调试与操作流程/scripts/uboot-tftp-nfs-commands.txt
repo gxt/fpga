@@ -1,0 +1,8 @@
+setenv ethact eth0@60020000
+setenv ipaddr 192.168.200.250
+setenv serverip 192.168.200.201
+setenv netmask 255.255.255.0
+ping 192.168.200.201
+tftpboot 0x81000000 Image
+setenv bootargs 'earlycon console=ttyAU0,115200 root=/dev/nfs nfsroot=192.168.200.201:/home/data/vivado-risc-v/workspace/release-r2-hotfix/nfsroot,vers=3,tcp,rw ip=192.168.200.250:192.168.200.201::255.255.255.0:dualv7:eth0:off'
+booti 0x81000000 - 0x10080
