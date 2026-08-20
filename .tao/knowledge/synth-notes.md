@@ -397,3 +397,10 @@ Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
 - Debug 内部寄存器偏移：Data0=0x4、Data1=0x5、Dmcontrol=0x10、Dmstatus=0x11、Abstractcs=0x16、Command=0x17
 - **剩余待查**：Dmcontrol 读回 0（haltreq 读回异常，疑读路径时序）；Debug Access Memory 读返回 0（读路径）
 - 上板评估：host 写 CSR 0x30800 区上板已验证 OK（CSR 写通路正常）→ Debug 写 ITCM 机制仿真证实 → 上板 Debug 加载路径理论可行，待 T016 阶段 B 实测
+
+### T016 阶段 A 完成（ALL CHECKS PASSED，2026-08-20）
+
+- **Debug 写 ITCM[0x0]/ITCM[0x4]/DTCM[0x10000] 全部成功**，经 R 命令读回一致（deadbeef/CAFEBABE/12345678）
+- **halt 生效确认**：抽象命令 cmderr=0 即证核已 halt（CSR_STATUS 未直接反映 halted，但 Debug 内部 halted 条件满足）
+- **Debug Access Memory 读限制**：data0 读回依赖 io.itcm.readData.valid 时序，实测返回 0；**加载/验证用途用 R 命令读回代替**（不受影响）
+- **上板加载路径结论**：host 写 CSR 0x30800 区（上板已验证 OK）→ Debug 写 ITCM（仿真证实）→ R 读回验证 = **上板 Debug 加载通道可行**，待 T016 阶段 B 实测
