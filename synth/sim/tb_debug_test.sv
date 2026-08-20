@@ -86,6 +86,7 @@ module tb_debug_test;
             else if (rx_last_byte >= "A" && rx_last_byte <= "F") v = (v << 4) | (rx_last_byte - "A" + 10);
             else if (rx_last_byte >= "a" && rx_last_byte <= "f") v = (v << 4) | (rx_last_byte - "a" + 10);
         end
+        recv_byte();  // 消费行尾 \n
         hexval = v;
     endtask
 
@@ -147,36 +148,11 @@ module tb_debug_test;
         rx_byte_q.delete();   // 清空复位后可能残留的 host 初始发送
         #500;
 
-        // ---- 调试：复位后发 ? 并 dump 原始响应 ----
-        send_str("?\n");
-        #200_000;
-        begin
-            string s = "";
-            while (rx_byte_q.size() > 0) begin
-                logic [7:0] b;
-                b = rx_byte_q.pop_front();
-                s = {s, b};
-            end
-            $display("TB: 复位后 ? 响应 dump=%s", s);
-        end
-        rx_byte_q.delete();
-
         $display("=== T016-A: Debug 抽象命令读写 TCM（Dbg 寄存器协议）===");
 
-        // 1) halt 核：Dmcontrol(0x10) = haltreq[31]+dmactive[0]（dump 各 w_cmd 响应）
-        begin
-            string s;
-            send_str("W0003080000000010\n");   // DbgReqAddr = 0x10 (Dmcontrol)
-            #200_000; s=""; while (rx_byte_q.size()>0) begin logic [7:0] b; b=rx_byte_q.pop_front(); s={s,b}; end
-            $display("TB: halt w1(ReqAddr) resp=%s", s);
-            send_str("W0003080480000001\n");   // DbgReqData = 0x80000001
-            #200_000; s=""; while (rx_byte_q.size()>0) begin logic [7:0] b; b=rx_byte_q.pop_front(); s={s,b}; end
-            $display("TB: halt w2(ReqData) resp=%s", s);
-            send_str("W0003080800000002\n");   // DbgReqOp = WRITE(2) 触发
-            #200_000; s=""; while (rx_byte_q.size()>0) begin logic [7:0] b; b=rx_byte_q.pop_front(); s={s,b}; end
-            $display("TB: halt w3(ReqOp) resp=%s", s);
-        end
-        $display("TB: 写 Dmcontrol haltreq（dump 完成）");
+        // 1) halt 核：Dmcontrol(0x10) = haltreq[31]+dmactive[0]
+        dbg_reg(32'h10, 32'h80000001, 1, got);
+        $display("TB: 写 Dmcontrol haltreq");
         begin
             int found = 0;
             for (int i = 0; i < 50 && !found; i++) begin
