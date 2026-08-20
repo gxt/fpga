@@ -9,16 +9,16 @@
 //
 // 器件：xc7v2000tflg1925-1（F1）
 // 引脚映射（见 synth/xdc/top_coralnpu.xdc 与 board-notes.md）：
-//   OSC1: W4(P)/W3(N)；SW1: AP31；J26 RX: F20；J26 TX: E20；
+//   s2cclk_1: L4(P)/L3(N)（100MHz 差分，JG1/JG2）；SW1: AP31；J26 RX: F20；J26 TX: E20；
 //   LED40: K25（halted）；LED41: K28（fault）；LED42: J28（locked）
 //
-// 时钟参数（T012 需按实际 OSC1 频率确认）：
-//   CLK_IN_HZ  = 假定 OSC1 输入频率（默认 100MHz，即 MMCM 锁定所需）
-//   CORE_CLK_HZ = MMCM 输出频率（默认 50MHz，同时是 UART 波特率基准）
+// 时钟参数（2026-08-20 已确认：时钟源 = s2cclk_1 L4/L3 100MHz，OSC1 W4/W3 48MHz 已废弃）：
+//   CLK_IN_HZ  = 时钟输入频率（100MHz，L4/L3 s2cclk_1）
+//   CORE_CLK_HZ = MMCM 输出频率（默认 40MHz，同时是 UART 波特率基准）
 //   MMCM 比例：CLK_IN × MMCM_MULT / MMCM_DIVCLK / MMCM_OUT_DIV = CORE_CLK
-//   若实际振荡器频率不同，改这三个参数 + xdc 中 create_clock period 即可
 module top_coralnpu #(
-    parameter int  CLK_IN_HZ   = 100_000_000,   // OSC1 假定频率（待 T012 板上确认）
+...
+    parameter int  CLK_IN_HZ   = 100_000_000,   // s2cclk_1 (L4/L3) 100MHz 输入
     parameter int  CORE_CLK_HZ = 40_000_000,    // MMCM 输出频率（40MHz：在 xc7v2000t -1
                                                 //   上给时序留出裕量；50MHz 有 -0.15ns 违例，
                                                 //   见 synth-notes T010）
