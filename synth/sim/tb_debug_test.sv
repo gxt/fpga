@@ -147,6 +147,20 @@ module tb_debug_test;
         rx_byte_q.delete();   // 清空复位后可能残留的 host 初始发送
         #500;
 
+        // ---- 调试：复位后发 ? 并 dump 原始响应 ----
+        send_str("?\n");
+        #200_000;
+        begin
+            string s = "";
+            while (rx_byte_q.size() > 0) begin
+                logic [7:0] b;
+                b = rx_byte_q.pop_front();
+                s = {s, b};
+            end
+            $display("TB: 复位后 ? 响应 dump=%s", s);
+        end
+        rx_byte_q.delete();
+
         $display("=== T016-A: Debug 抽象命令读写 TCM（Dbg 寄存器协议）===");
 
         // 1) halt 核：Dmcontrol(0x10) = haltreq[31]+dmactive[0]
