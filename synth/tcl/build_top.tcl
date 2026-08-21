@@ -53,7 +53,7 @@ opt_design
 place_design
 report_utilization    -file $work_dir/utilization_place.rpt
 report_timing_summary -file $work_dir/timing_place.rpt
-phys_opt_design
+phys_opt_design -hold_fix
 route_design
 report_utilization    -file $work_dir/utilization_route.rpt
 report_timing_summary -file $work_dir/timing_route.rpt
