@@ -153,3 +153,9 @@
 - bit：T010-clean（md5 9b2d8d0e...，WNS+0.950/WHS+0.016/hold 0/0 ERROR，proj 工程模式）
 - 验证：load_elf 232 字（纯 AXI 写 ITCM）全成功 + T007 运行 **ALL PASS**
 - 结论：host_tcm 直写端口已彻底移除，仅用 AXI 写 ITCM，设计回到上游干净
+
+### T016 阶段 B 重测通过（2026-08-21）
+- bit：T010-clean（UART 同步器修复后）
+- 结果：Debug 写 ITCM[0x0]=DEADBEEF、ITCM[0x4]=CAFEBABE → R 读回一致 → **ALL PASS**
+- **假设确认**：阶段 B"Debug 写未生效" = uart_rx 亚稳态（Debug 命令为长命令序列，当时与 host 写 ITCM 卡同因）；UART 修复后 Debug 通路（CoreAxiCSR Dbg 寄存器 0x30800/04/08/14）完全正常
+- Dmstatus/Abstractcs 读回 0 为已知限制（Debug Access Memory 读返回 0），加载/验证用 R 命令读回代替，不受影响
