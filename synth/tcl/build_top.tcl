@@ -13,11 +13,13 @@
 #   rtl_dir      远端 core_mini_axi SV 目录（如 ~/fpga/rtl_out/core_mini_axi/）
 #   top_rtl_dir  本工程顶层/桥接 SV 目录（如 ~/fpga/synth/rtl/）
 #   xdc_dir      引脚约束目录（如 ~/fpga/synth/xdc/）
+#   mode         可选：proj（建 xpr 工程，默认）| batch（非工程，快速迭代）
 # =============================================================================
 set work_dir    [lindex $argv 0]
 set rtl_dir     [lindex $argv 1]
 set top_rtl_dir [lindex $argv 2]
 set xdc_dir     [lindex $argv 3]
+set mode        [lindex $argv 4]
 set part        "xc7v2000tflg1925-1"
 set top         "top_coralnpu"
 
@@ -25,21 +27,39 @@ if {$work_dir eq ""} { error "缺少 work_dir 参数" }
 if {$rtl_dir eq ""} { error "缺少 rtl_dir 参数" }
 if {$top_rtl_dir eq ""} { error "缺少 top_rtl_dir 参数" }
 if {$xdc_dir eq ""} { error "缺少 xdc_dir 参数" }
+if {$mode eq ""} { set mode "proj" }
 
 file mkdir $work_dir
-puts "==> T010 build: part=$part top=$top work=$work_dir"
+puts "==> T010 build: part=$part top=$top work=$work_dir mode=$mode"
 puts "==> rtl_dir=$rtl_dir"
 puts "==> top_rtl_dir=$top_rtl_dir"
 puts "==> xdc_dir=$xdc_dir"
 
 # ---- 读源（core_mini_axi 为 bazel 生成，不改动） ----
-read_verilog -sv $rtl_dir/CoreMiniAxi.sv
-read_verilog -sv $top_rtl_dir/top_coralnpu.sv
-read_verilog -sv $top_rtl_dir/uart_rx.sv
-read_verilog -sv $top_rtl_dir/uart_tx.sv
-read_verilog -sv $top_rtl_dir/host_cmd_fsm.sv
-read_verilog -sv $top_rtl_dir/axi_master_stub.sv
-read_xdc $xdc_dir/top_coralnpu.xdc
+if {$mode eq "proj"} {
+    # 工程模式：建 .xpr 工程
+    set proj_name [file tail [file normalize $work_dir]]
+    create_project $proj_name $work_dir -part $part -force
+    add_files -norecurse [list \
+        $rtl_dir/CoreMiniAxi.sv \
+        $top_rtl_dir/top_coralnpu.sv \
+        $top_rtl_dir/uart_rx.sv \
+        $top_rtl_dir/uart_tx.sv \
+        $top_rtl_dir/host_cmd_fsm.sv \
+        $top_rtl_dir/axi_master_stub.sv]
+    add_files -fileset constrs_1 -norecurse $xdc_dir/top_coralnpu.xdc
+    set_property top $top [get_filesets sources_1]
+    update_compile_order -fileset sources_1
+    puts "==> 工程已创建: $work_dir/$proj_name.xpr"
+} else {
+    read_verilog -sv $rtl_dir/CoreMiniAxi.sv
+    read_verilog -sv $top_rtl_dir/top_coralnpu.sv
+    read_verilog -sv $top_rtl_dir/uart_rx.sv
+    read_verilog -sv $top_rtl_dir/uart_tx.sv
+    read_verilog -sv $top_rtl_dir/host_cmd_fsm.sv
+    read_verilog -sv $top_rtl_dir/axi_master_stub.sv
+    read_xdc $xdc_dir/top_coralnpu.xdc
+}
 
 # ---- 综合 ----
 synth_design -top $top -part $part
@@ -68,3 +88,4 @@ write_bitstream -force -bin_file $work_dir/top_coralnpu.bit
 puts "==> T010 build DONE"
 puts "==> bitstream: $work_dir/top_coralnpu.bit / $work_dir/top_coralnpu.bin"
 puts "==> reports: $work_dir"
+if {$mode eq "proj"} { close_project }
