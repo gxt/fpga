@@ -139,3 +139,10 @@
 
 ### 目录规范化（2026-08-21）
 统一 `synth/out/<任务>-<描述>/`（201）与 `~/fpga/work/<任务>-<描述>/`（202）命名。重命名映射：`synth_t008_check`→`T008-check`、`T009_chip_nexus_synth_only`→`T009-chip-nexus-synth`、`T010`(首版)→`T010-first`；清理 202 run202-* 测试目录与 201 顶层 vivado.* 残留。当前 bit 目录：`T010-sync`（最新，md5 514c5a56...）。
+
+### AXI 写 ITCM 验证（2026-08-21，T010-axiitcm bit）
+- 改动：host_cmd_fsm W 命令关闭直写分支（ITCM 也走 XW_AW/AXI），其余不变
+- bit：T010-axiitcm（14:55，md5 96c8425a...，proj 工程模式首次成功，WNS+0.333/WHS+0.086/hold 0）
+- 结果：**AXI 写 ITCM 8/8 + 读回一致；load_elf 232 字全成功；T007 运行 ALL PASS**
+- **结论：host_tcm 直写端口非必需**（UART 同步器修复后 AXI 写 ITCM 正常）；方案 A 可移除回到上游干净状态
+- 注意：load_elf 需 `python3 -u`（管道下 stdout 块缓冲导致"看不到进度"）
