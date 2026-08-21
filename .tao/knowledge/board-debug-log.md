@@ -136,3 +136,6 @@
 - S 启动 OK → 核 HALTED（STATUS=1，CTRL=0）
 - **回读验证 ALL PASS**：out_mul={700,1600,2700,4000}、fout={2.0,3.0,5.0,7.0}
 - 注意：load_elf 的 Q 轮询判定有误报（Q 响应格式正确 `0003000800000001`，但轮询时机在核跑完前；可用 t007_result_check.py 直接回读确认）
+
+### 目录规范化（2026-08-21）
+统一 `synth/out/<任务>-<描述>/`（201）与 `~/fpga/work/<任务>-<描述>/`（202）命名。重命名映射：`synth_t008_check`→`T008-check`、`T009_chip_nexus_synth_only`→`T009-chip-nexus-synth`、`T010`(首版)→`T010-first`；清理 202 run202-* 测试目录与 201 顶层 vivado.* 残留。当前 bit 目录：`T010-sync`（最新，md5 514c5a56...）。

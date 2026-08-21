@@ -40,14 +40,32 @@
 - **目录**：201 `synth/out/<日期>-<任务>-<描述>/`（bit/报告）；202 `~/fpga/work/<task>/`（工程/日志）
 - **网络纪律**：所有远程启动必须 nohup + 日志重定向；禁止本地 sleep+多次查询循环
 
-## 4. bit 目录与工程规范
+## 4. 目录命名规范（统一）
+
+**每个任务独立子目录，命名统一 `<任务>-<描述>`**（连字符小写，201/202 同名）：
+
+| 位置 | 规范 | 示例 |
+| --- | --- | --- |
+| 201 产物 | `synth/out/<任务>-<描述>/` | `synth/out/T010-sync/` |
+| 202 工作 | `~/fpga/work/<任务>-<描述>/` | `~/fpga/work/T010-sync/` |
+
+- 任务编号统一（`T###` 或简称），描述简短小写连字符（`fix-clk`/`hosttcm`/`baudfix`/`sync`）
+- 禁止：下划线分隔描述、前缀游离（如 `synth_t008_check`）、无描述裸名（如 `T010`）
+
+**历史重命名映射（2026-08-21 规范化）**：
+- `synth_t008_check` → `T008-check`
+- `T009_chip_nexus_synth_only` → `T009-chip-nexus-synth`
+- `T010`（首版）→ `T010-first`
+- 202 `run202-*` 测试残留已清理
+
+## 5. bit 产物规范
 
 - 每次生成 bit 用**专门子目录**：`synth/out/<日期>-<任务>-<描述>/`（如 `synth/out/20260821-T010-sync/`）
 - **必须建 Vivado xpr 工程文件**：综合用 `build_top.tcl` 工程模式（`create_project`，参数 `proj`），产出 `.xpr`；非工程 batch 模式保留（参数 `batch`）用于快速迭代
 - 产物：`top_coralnpu.bit`/`.bin`、`post_route.dcp`、各 `*.rpt`（utilization/timing/route_status/drc）
 - 烧录用指定 bit 文件（先 `ls -la synth/out/*/top_coralnpu.bit` 确认最新版本再烧）
 
-## 5. 提醒机制（强制约定）
+## 6. 提醒机制（强制约定）
 
 以下操作**执行前必须提醒用户并等确认**：
 1. **长时间任务启动**（综合/完整 SoC/长仿真）：提醒 + 告知预计耗时
@@ -55,14 +73,14 @@
 3. **板卡 SW1 复位**：每次复位前提醒并等用户确认
 4. 长时间串口测试/可能影响板卡的实验
 
-## 6. 上板调试标准流程
+## 7. 上板调试标准流程
 
 1. 提醒 → 烧录 bit（确认版本）→ 提醒 → 用户复位
 2. `sg dialout` 跑测试脚本（`sim/` 下按需选择）
 3. 结果验证 + 记录到 `board-debug-log.md`
 4. 问题沉淀：证据链（先确认环境/时序，再改 RTL）+ 每次改动记录
 
-## 7. 工具清单
+## 8. 工具清单
 
 - `synth/tcl/run202.sh`：201→202 远程 nohup 任务启动
 - `synth/tcl/run202_wait.sh`：阻塞等待任务完成
