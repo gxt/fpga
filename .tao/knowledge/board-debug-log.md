@@ -7,18 +7,18 @@
 
 - **板卡**：S2C Dual Virtex-7 TAI LM（F1），JTAG J24（Digilent cable `SULEE2211346A`），子板 UART（AV42/AU42 → CH341）
 - **串口**：`/dev/ttyUSB0`（CH341，VID 1a86:5523），115200 8N1；需 `dialout` 组（已加入）或 `sg dialout`
-- **烧录**：`synth/tcl/program_top.tcl`（probe/program 两模式，机器201 执行）
+- **烧录**：`scripts/program_top.tcl`（probe/program 两模式，机器201 执行）
 - **复位**：SW1（AP31，低有效）——**每次测试前需人工复位；复位不清 SRAM**（ITCM/DTCM 内容保留）
 - **命令协议**（T010 host_cmd_fsm）：`W<8hex addr><8hex data>` 写 / `R<8hex addr><2hex count>` 读 / `S` 引导 / `Q` 状态(CSR_STATUS 0x30008) / `?` 帮助，LF 结尾
-- **脚本**：`sim/load_elf_uart.py`（ELF 加载，可用）、`sim/debug_write_tcm.py`（Debug 写 ITCM 上板，阶段 B 用）、`sim/diag_itcm_write.py`（ITCM 写诊断，排查用）、`synth/sim/tb_debug_test.sv`（T016 阶段 A 仿真 tb，ALL PASS）
+- **脚本**：`sim/T015-load_elf_uart.py`（ELF 加载，可用）、`sim/T016-debug_write_tcm.py`（Debug 写 ITCM 上板，阶段 B 用）、`sim/T015-diag_itcm_write.py`（ITCM 写诊断，排查用）、`synth/sim/T016-tb_debug_test.sv`（T016 阶段 A 仿真 tb，ALL PASS）
 
 ### 调试脚本状态（2026-08-20）
 | 脚本 | 状态 | 说明 |
 |---|---|---|
-| `sim/load_elf_uart.py` | 待修复 | 依赖 host W 写 ITCM（上板连续命令卡，需先修 host_cmd_fsm） |
-| `sim/debug_write_tcm.py` | 待验证 | 上板 Debug 写未生效（阶段 B 阻塞） |
-| `sim/diag_itcm_write.py` | 诊断用 | 上板 host 连续命令卡根因排查 |
-| `synth/sim/tb_debug_test.sv` | ✅ 阶段 A 通过 | Debug 写 TCM 仿真验证 |
+| `sim/T015-load_elf_uart.py` | 待修复 | 依赖 host W 写 ITCM（上板连续命令卡，需先修 host_cmd_fsm） |
+| `sim/T016-debug_write_tcm.py` | 待验证 | 上板 Debug 写未生效（阶段 B 阻塞） |
+| `sim/T015-diag_itcm_write.py` | 诊断用 | 上板 host 连续命令卡根因排查 |
+| `synth/sim/T016-tb_debug_test.sv` | ✅ 阶段 A 通过 | Debug 写 TCM 仿真验证 |
 
 ## T015：UART host 通路验证
 
@@ -83,7 +83,7 @@
 - **当前状态**：新 bit `T010-hosttcm/top_coralnpu.bit`（含 **host_tcm 直写端口**，绕过 AXI）已烧录上板，DONE HIGH
 - **待办**：**SW1 复位后**测试 W 写 ITCM 连续多字（直写应不再卡 AXI）+ R 读回验证
 - **改动**：coralnpu fork `d74e0ac8`（CoreAxi 加 host_tcm 端口，ITCM arbiter 4 端口）；主仓库 `72a4fae`（host_cmd_fsm W 写 ITCM 走直写）+ `b4e6dcd`（信号声明顺序）
-- **测试脚本**：`sim/uart_slow_test.py`（100ms 间隔 DTCM/ITCM 连续写）、`sim/diag_itcm_write.py`
+- **测试脚本**：`sim/T015-uart_slow_test.py`（100ms 间隔 DTCM/ITCM 连续写）、`sim/T015-diag_itcm_write.py`
 - **相关环境**：bazel 需 `CC=clang-14`（Ubuntu 24.04 clang-18 modules 不兼容）
 - **恢复步骤**：复位 → `sg dialout` 跑 uart_slow_test.py → 验证 ITCM 直写全过 → 记录结果
 

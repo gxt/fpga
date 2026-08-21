@@ -64,22 +64,13 @@ if {$mode eq "proj"} {
 # ---- 综合 ----
 synth_design -top $top -part $part
 
-report_utilization    -file $work_dir/utilization_synth.rpt
-report_timing_summary -file $work_dir/timing_synth.rpt
-write_checkpoint -force $work_dir/post_synth.dcp
-
-# ---- 实现 ----
+# ---- 实现（中间阶段报告/checkpoint 默认不产出，需要时从 post_route.dcp 重生成） ----
 opt_design
 place_design
-report_utilization    -file $work_dir/utilization_place.rpt
-report_timing_summary -file $work_dir/timing_place.rpt
 phys_opt_design -hold_fix
 route_design
 report_utilization    -file $work_dir/utilization_route.rpt
 report_timing_summary -file $work_dir/timing_route.rpt
-report_route_status   -file $work_dir/route_status.rpt
-report_clock_utilization -file $work_dir/clock_utilization.rpt
-report_drc            -file $work_dir/drc_route.rpt
 write_checkpoint -force $work_dir/post_route.dcp
 
 # ---- bitstream（.bit + .bin） ----

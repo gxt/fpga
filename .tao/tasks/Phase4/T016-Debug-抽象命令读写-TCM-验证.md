@@ -9,7 +9,7 @@
 - 约束：**分两阶段**——阶段 A（机器202 xsim 仿真，全自动）在阶段 B（机器201 上板 UART）之前；抽象命令需核 halted（cmderr=4 当未 halt）；Access Memory 仅支持 ITCM/DTCM（cmderr=5 其他地址）
 
 ## 验收标准
-1. **阶段 A（机器202 xsim，自动）**：新建独立 tb（不改原 `tb_top.sv`）模拟 UART 发 Debug CSR 序列：写 Dmcontrol(0x30810)=0x80000001（haltreq+dmactive）→ 轮询 Dmstatus(0x30811) allhalted → 写 Data1(0x30805)=地址 → 写 Data0(0x30804)=数据 → 写 Command(0x30817)（cmdtype=2 + aamsize=2 + write/transfer）→ 轮询 Abstractcs(0x30816) busy=0 且 cmderr=0 → 读回 Data0 验证一致
+1. **阶段 A（机器202 xsim，自动）**：新建独立 tb（不改原 `T010-tb_top.sv`）模拟 UART 发 Debug CSR 序列：写 Dmcontrol(0x30810)=0x80000001（haltreq+dmactive）→ 轮询 Dmstatus(0x30811) allhalted → 写 Data1(0x30805)=地址 → 写 Data0(0x30804)=数据 → 写 Command(0x30817)（cmdtype=2 + aamsize=2 + write/transfer）→ 轮询 Abstractcs(0x30816) busy=0 且 cmderr=0 → 读回 Data0 验证一致
 2. **阶段 B（机器201 上板）**：UART 发同一序列，写 DTCM(0x10000)/ITCM(0x0) 后读回一致，cmderr=0
 3. 记录：抽象命令编码、寄存器映射（相对基址 0x30800 的偏移）、halt 前提、与 T013 程序加载的关系（备选通道）
 4. 若阶段 A 失败（busy 不释放/时钟门控影响），先排查仿真问题，不直接上板
@@ -19,12 +19,12 @@
 **当前进展**：
 - ✅ **阶段 A（机器202 xsim）ALL CHECKS PASSED**：Debug 抽象命令写 ITCM[0x0]/ITCM[0x4]/DTCM[0x10000] 成功（R 命令读回一致）
 - ✅ **Debug 访问协议发现**：CoreAxiCSR Dbg 寄存器（0x30800/04/08 触发、0x30814 清响应队列）+ Debug 内部偏移（Data0/Data1/Dmcontrol/Command）
-- ✅ **阶段 B（上板，2026-08-21 重测）ALL PASS**：UART 同步器修复后重测 `debug_write_tcm.py`——Debug 写 ITCM[0x0]=DEADBEEF、ITCM[0x4]=CAFEBABE → R 读回一致
+- ✅ **阶段 B（上板，2026-08-21 重测）ALL PASS**：UART 同步器修复后重测 `T016-debug_write_tcm.py`——Debug 写 ITCM[0x0]=DEADBEEF、ITCM[0x4]=CAFEBABE → R 读回一致
 - **根因确认**：阶段 B 原"Debug 写未生效" = **uart_rx 亚稳态**（Debug 命令为长命令序列，与 host 写 ITCM 卡同因），UART 修复后 Debug 通路完全正常
-- 调试过程/脚本/工具见 `.tao/knowledge/board-debug-log.md`；脚本 `sim/debug_write_tcm.py`
+- 调试过程/脚本/工具见 `.tao/knowledge/board-debug-log.md`；脚本 `sim/T016-debug_write_tcm.py`
 **Commit**：主仓库（T015/T016 相关 commit）
 **测试结果**：阶段 A xsim ALL CHECKS PASSED；阶段 B 上板 ALL PASS（bit `T010-clean`）
-**修改文件**：无新增 RTL（复用 T010-clean + T015 UART 修复）；脚本 `sim/debug_write_tcm.py`（已有）
+**修改文件**：无新增 RTL（复用 T010-clean + T015 UART 修复）；脚本 `sim/T016-debug_write_tcm.py`（已有）
 **验收结果**：
 - ✅ 阶段 A：Debug 写 ITCM/DTCM 读回一致（xsim）
 - ✅ 阶段 B：Debug 写 ITCM 上板读回一致（DEADBEEF/CAFEBABE）

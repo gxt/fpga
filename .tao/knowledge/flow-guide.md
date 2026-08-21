@@ -35,8 +35,8 @@
 
 ## 3. 远程任务规范
 
-- **启动**：`synth/tcl/run202.sh <task> <cmd...>` —— ssh 到 202 用 `nohup` 后台启动（防网络中断），任务日志落 `~/fpga/work/<task>/build.log`
-- **等待**：`synth/tcl/run202_wait.sh <task> [pid_pattern]` —— 单条 ssh 远端 `while pgrep ...; do sleep 15; done`，返回即完成
+- **启动**：`scripts/run202.sh <task> <cmd...>` —— ssh 到 202 用 `nohup` 后台启动（防网络中断），任务日志落 `~/fpga/work/<task>/build.log`
+- **等待**：`scripts/run202_wait.sh <task> [pid_pattern]` —— 单条 ssh 远端 `while pgrep ...; do sleep 15; done`，返回即完成
 - **目录**：201 `synth/out/<日期>-<任务>-<描述>/`（bit/报告）；202 `~/fpga/work/<task>/`（工程/日志）
 - **网络纪律**：所有远程启动必须 nohup + 日志重定向；禁止本地 sleep+多次查询循环
 
@@ -84,13 +84,13 @@
 
 - **运行测试脚本必须实时、完整显示输出**，能看到"运行到哪一步、正在做什么"
 - **禁止用 `| tail`、`| head` 等截断管道**接调试脚本输出——截断后看不到中间进度，只能干等
-- 调试脚本（`sim/*.py`）本身应打印每步进度（如 `itcm_direct_test` 每字一行、`load_elf` 加载计数、`csr_probe` 每步读值），运行时不加任何输出过滤
+- 调试脚本（`sim/*.py`）本身应打印每步进度（如 `T015-itcm_direct_test` 每字一行、`T015-load_elf` 加载计数、`T015-csr_probe` 每步读值），运行时不加任何输出过滤
 - 例外：仅当输出**确实过大**且需要看尾部时，可先完整落盘再分块查看（如 `> log 2>&1` 后 `run202_check`/分段读文件），**不适用于交互式上板测试**
 
 ## 8. 工具清单
 
-- `synth/tcl/run202.sh`：201→202 远程 nohup 任务启动
-- `synth/tcl/run202_wait.sh`：阻塞等待任务完成
-- `synth/tcl/build_top.tcl`：综合+实现+bit（batch/proj 双模式）
-- `synth/tcl/program_top.tcl`：烧录
-- `sim/*.py`：上板测试脚本（itcm_direct_test/uart_raw_probe/load_elf/t007_result_check 等）
+- `scripts/run202.sh`：201→202 远程 nohup 任务启动
+- `scripts/run202_wait.sh`：阻塞等待任务完成
+- `scripts/build_top.tcl`：综合+实现+bit（batch/proj 双模式）
+- `scripts/program_top.tcl`：烧录
+- `sim/*.py`：上板测试脚本（T015-itcm_direct_test/T015-uart_raw_probe/T015-load_elf/T015-t007_result_check 等）

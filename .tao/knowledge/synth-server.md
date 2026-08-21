@@ -95,7 +95,7 @@
 | 环节 | 执行机 | 内容 |
 | --- | --- | --- |
 | RTL 生成 | 机器201 | bazel 生成 `CoreMiniAxi.sv`（缓存热，秒级） |
-| 适配设计 | 机器201 | AXI 桥接顶层 5 个 SV（top_coralnpu/uart_rx/uart_tx/host_cmd_fsm/m_axi_stub）+ XDC + tcl + `tb_top.sv`（主仓库 `synth/`） |
+| 适配设计 | 机器201 | AXI 桥接顶层 5 个 SV（top_coralnpu/uart_rx/uart_tx/host_cmd_fsm/m_axi_stub）+ XDC + tcl + `T010-tb_top.sv`（主仓库 `synth/`） |
 | RTL 功能验证 | 机器201 | **xsim**（xelab 编译 + xsim 仿真，多轮迭代，最后一轮 17:42 `ALL CHECKS PASSED`） |
 | 工程生成/推送 | 机器201 | Vivado 工程（tcl）+ `sync.sh push` 机器202 |
 | 综合/实现/bitstream | 机器202 | `vivado -mode batch`：synth → place → route → write_bitstream |
@@ -108,7 +108,7 @@
 | --- | --- | --- |
 | RTL 生成（bazel 产 CoreMiniAxi.sv） | **≈0 新增** | 复用 T008 已推送产物（`rtl_out/core_mini_axi`），T010 内无独立 bazel 时间块 |
 | 适配设计（5 SV + XDC） | 跨度 **14:19→17:41 ≈ 3h22m**（含迭代与穿插验证） | uart_tx 14:19 → uart_rx 15:10 → top_coralnpu 17:02 → host_cmd_fsm 17:41 |
-| 功能验证（xsim） | 最后阶段 **17:04→17:42 ≈ 38min**；多轮穿插累计约 1h 内 | tb_top.sv 17:04、xsim 17:42:15 退出（`.tao/logs/T010-sim-tb_top.log`） |
+| 功能验证（xsim） | 最后阶段 **17:04→17:42 ≈ 38min**；多轮穿插累计约 1h 内 | T010-tb_top.sv 17:04、xsim 17:42:15 退出（`.tao/logs/T010-sim-tb_top.log`） |
 | 工程生成（tcl） | 跨度 **≈15:10→16:34 ≈ 1h24m**（含迭代） | build_top.tcl/resume_top.tcl mtime 16:34；build1（16:03）前需初版 |
 | 机器202构建 build1 | 16:03–16:39 ≈36min | 首版 50MHz 时序违例（WNS -0.148ns/5 端点 + WHS -0.236ns/41 端点） |
 | 机器202构建 build2 | 17:12–17:42 ≈30min | 降频 40MHz 迭代（期间机器201仍改 top_coralnpu/host_cmd_fsm） |

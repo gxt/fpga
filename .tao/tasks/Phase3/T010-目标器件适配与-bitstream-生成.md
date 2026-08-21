@@ -23,7 +23,7 @@
 **测试结果**：
 - 综合/实现/bitstream（最终第三版）：**0 ERROR / 0 CRITICAL WARNING / 287 警告行（全部良性分类见下）**；route 100%（50507/50507 nets，0 routing errors）
 - 时序（post-route）：WNS=+0.253ns（0 setup 违例）、WHS=-0.085ns（7 端点，85ps，host→core AR 短路径 hold，run-to-run 差异，可忽略）
-- xsim 功能验证（`synth/sim/tb_top.sv`，USE_MMCM=0）：**全部检查通过** —— W 命令加载 4 指令→S 启动→Q 轮询 HALTED（status=0x00000001）→R 回读 DTCM[0x10000]=42（0x2A）→led_halted=1/led_fault=0→HELP→ERR（非法命令），日志 `.tao/logs/T010-sim-tb_top.log`
+- xsim 功能验证（`synth/sim/T010-tb_top.sv`，USE_MMCM=0）：**全部检查通过** —— W 命令加载 4 指令→S 启动→Q 轮询 HALTED（status=0x00000001）→R 回读 DTCM[0x10000]=42（0x2A）→led_halted=1/led_fault=0→HELP→ERR（非法命令），日志 `.tao/logs/T010-sim-tb_top.log`
 **修改文件**：
 - 新建 `synth/rtl/top_coralnpu.sv`（上板顶层：OSC1→MMCM→clk_core、SW1 复位、UART、CoreMiniAxi、m_axi 响应桩、LED）
 - 新建 `synth/rtl/host_cmd_fsm.sv`（UART 命令 FSM→AXI4 单拍读写，W/R/S/Q/? 协议）
@@ -31,7 +31,7 @@
 - 新建 `synth/rtl/axi_master_stub.sv`（core m_axi 响应桩，防挂死）
 - 新建 `synth/xdc/top_coralnpu.xdc`（S2C F1 引脚/时钟约束）
 - 新建 `synth/tcl/build_top.tcl` / `resume_top.tcl`（非工程 batch 构建/续跑）
-- 新建 `synth/sim/tb_top.sv`（xsim 全链路验证 testbench）
+- 新建 `synth/sim/T010-tb_top.sv`（xsim 全链路验证 testbench）
 - 修改 `synth/README.md`（T010 构建/仿真说明）、`.tao/knowledge/synth-notes.md`（T010 节：决策/设计/结果/坑）
 **验收结果**（逐条）：
 1. **验收 1 ✅**：目标器件 `xc7v2000tflg1925-1` 已在 board-notes.md 登记；Vivado part 数据库验证关键引脚有效（W4/W3=IO_L13P/N_T2_MRCC_37、AP31=IO_L13P_T2_MRCC_36、E20/F20=IO_L14N/P_T2_SRCC_40、K25/K28/J28 有效）
@@ -105,7 +105,7 @@
 - `axi_master_stub.sv`：读 FSM 正确（ARLEN 拍数回 0 数据、rlast 最后拍、rready 反压）。写 FSM 存在**潜在缺陷**：若 W 突发先于 AW 到达（WLAST 在 cycle N 置 w_last_seen=1），AW 在 N+1 到达时 `w_last_seen <= m_wvalid && m_wlast` 会把 w_last_seen 覆盖为 0，此后 BVALID 永不置位→挂死。自审宣称"对 W 先于 AW 异常顺序鲁棒"与代码不符（仅同拍 AW+WLAST 与 W 后于 AW 被正确处理）。当前 xsim/上板场景 core 不访问外部内存，桩未被触发，不构成现有功能失败；但作为"防挂死"桩存在与其目的相悖的盲区，建议一行修复（AW 分支改为 `w_last_seen <= w_last_seen || (m_wvalid&&m_wlast)`）或至少更正记录中"鲁棒"的表述。
 - `top_coralnpu.xdc`：8 引脚约束齐全（W4/W3=LVDS、AP31=LVCMOS18+PULLUP、E20/F20=LVCMOS18、K25/K28/J28=LVCMOS15）；create_clock 10ns 与 MMCM 参数一致。✅（引脚在 part 数据库有效：已由 0 ERROR 综合间接验证）
 - `build_top.tcl` / `resume_top.tcl`：非工程 batch 流程正确；参数校验、报告/checkpoint/bitstream 输出齐全；`file mkdir` 无 `-force`（F6 已修；build1 遗留的 `synth/out/T010/-force` 空目录仍在磁盘，不影响）。✅
-- `tb_top.sv`：程序编码核对正确（0x02A00293 addi、0x00010137 lui、0x00512023 sw、0x08000073 mpause）；TB 接收器采样点正确；负例（X123→ERR）覆盖错误路径。测试覆盖 W/S/Q/R/?/ERR/LED，未覆盖多字 R（count>1）与 SLVERR 路径，但对本任务验收足够。✅
+- `T010-tb_top.sv`：程序编码核对正确（0x02A00293 addi、0x00010137 lui、0x00512023 sw、0x08000073 mpause）；TB 接收器采样点正确；负例（X123→ERR）覆盖错误路径。测试覆盖 W/S/Q/R/?/ERR/LED，未覆盖多字 R（count>1）与 SLVERR 路径，但对本任务验收足够。✅
 - **关键设计假设独立验证**（CoreMiniAxi.sv 源码，机器202）：SRAM 写入 `io_sram_address = addr[12:4]`、`io_sram_writeData_i = wdata[i*8+:8]`（固定通道不旋转）、`io_sram_mask_i = wstrb[i]`；CSR 写入 `offset0→[31:0]、offset4→[63:32]`。"不做地址旋转、AXI master 需自行对齐"的结论与 host_cmd_fsm 实现一致。✅
 
 **2. 重跑记录（真实输出/退出码）**

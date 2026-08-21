@@ -17,14 +17,14 @@
 
 ## 完成区
 **状态**：已验证（reviewer 第 1 轮 Accepted + Mimo 交叉复核确认）
-**Commit**：83202ff（`synth/tcl/program_top.tcl` 已提交）
+**Commit**：83202ff（`scripts/program_top.tcl` 已提交）
 **测试结果**：
 - Vivado Hardware Manager（机器201，batch）连接 cable `Digilent SULEE2211346A`，识别器件 `xc7v2000t_0`（PART xc7v2000t）
 - IDCODE `00100011011010110011000010010011`（有效）
 - `program_hw_devices` 加载 `T010-fix-clk/top_coralnpu.bit` 成功（32s），**`End of startup status: HIGH`（DONE 拉高）**
 - **LED1（F1_DONE）点亮**（用户人工观察确认）
 **修改文件**：
-- 新建 `synth/tcl/program_top.tcl`（Hardware Manager 烧录/识别脚本，probe/program 两模式）
+- 新建 `scripts/program_top.tcl`（Hardware Manager 烧录/识别脚本，probe/program 两模式）
 **验收结果**：
 1. ✅ 识别器件并成功加载 T010 修正后 bit，无错误（DONE HIGH）
 2. ✅ IDCODE 正确（xc7v2000t）+ LED1/F1_DONE 点亮
@@ -46,7 +46,7 @@
 
 **验证范围与证据等级**：本任务为**真实上板任务**。审查中发现本机（fpga201）实际连接板卡（hw_server 在 localhost:3121 可访问，cable `Digilent SULEE2211346A`），因此**验收命令被我真实重跑**（非仅读日志），证据等级为"独立重跑"；唯一不可重跑项为 LED1 点亮（用户人工观察），采信用户反馈并以 DONE HIGH（同源信号）佐证。
 
-**代码 review `synth/tcl/program_top.tcl`**（74 行，commit 83202ff 已提交）：
+**代码 review `scripts/program_top.tcl`**（74 行，commit 83202ff 已提交）：
 - probe/program 两模式参数解析正确（`-tclargs <bit> [probe]`）
 - cable 未找到（`get_hw_targets` 空）→ exit 1；JTAG 链无器件 → exit 1；bit 文件不存在 → exit 1，错误处理完整
 - verify 用 `catch` 容错（无 `.msk` 时跳过不阻断烧录）——**真实重跑证实**：`ERROR: [Labtools 27-3124] No maskfile assigned to hw_bitstream` 被 catch，脚本继续且 exit=0
@@ -87,7 +87,7 @@
 - 板卡机制以 board-notes.md 为准：JTAG 走 J24 标准 Xilinx 14-pin ✅（使用 Digilent cable，未见 Nexus 专用机制）
 - 不使用官方 Nexus 专用配置机制 ✅（标准 Vivado Hardware Manager JTAG 烧录）
 - 操作遵循上电/复位流程并记录板卡配置 ✅（完成区记录 SW1 复位、s2cclk_1(L4/L3) 100MHz 时钟源、12V/5V 供电）
-- coralnpu 零改动 ✅（`git diff HEAD~10..HEAD -- coralnpu/` 为空）；`synth/tcl/program_top.tcl` 为新增文件，已提交 83202ff
+- coralnpu 零改动 ✅（`git diff HEAD~10..HEAD -- coralnpu/` 为空）；`scripts/program_top.tcl` 为新增文件，已提交 83202ff
 - 未改契约/spec/测试凑绿：本次改动为新增烧录脚本，无既有验收逻辑被弱化 ✅
 
 **验收标准逐条判定**：
