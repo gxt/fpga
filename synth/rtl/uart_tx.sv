@@ -14,7 +14,7 @@ module uart_tx #(
     output logic tx_busy,
     output logic tx_out
 );
-    localparam int DIV    = CLK_HZ / BAUD;   // 每 bit 的时钟周期数
+    localparam int DIV    = (CLK_HZ + (BAUD / 2)) / BAUD;   // 每 bit 的时钟周期数（四舍五入）
     localparam int DIVW   = $clog2(DIV + 1);
 
     logic                busy_r;

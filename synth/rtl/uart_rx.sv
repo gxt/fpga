@@ -14,7 +14,8 @@ module uart_rx #(
     output logic rx_busy
 );
     // 16x 过采样：DIV = 每 1/16 bit 的时钟周期数；bit 周期 = 16 × DIV 个时钟
-    localparam int DIV    = CLK_HZ / (BAUD * 16);
+    // 四舍五入取整（避免向下取整引入 ~3.3% 波特率偏差导致长命令偶发 RX 错）
+    localparam int DIV    = (CLK_HZ + (BAUD * 8)) / (BAUD * 16);
     localparam int DIVW   = $clog2(DIV + 1);
 
     logic              busy_r;
