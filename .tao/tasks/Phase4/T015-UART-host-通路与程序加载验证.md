@@ -16,19 +16,27 @@
 5. 记录完整命令序列/脚本（可复现，放主仓库 `sim/` 或 `synth/` 下）
 
 ## 完成区
-**状态**：待开始（已部分执行，阻塞中——详见 board-debug-log.md）
-**当前进展**：
-- ✅ UART 通路验证：`?`→HELP、Q 读状态、W/R 写读 **DTCM(0x10000)** 一致
-- ✅ 子板 UART（AV42/AU42 → CH341 `/dev/ttyUSB0`，115200）
-- ❌ **ITCM 加载阻塞**：host 经 AXI 写 ITCM 上板 SLVERR；连续命令后 host 卡住（单命令正常）；复位后核复位+时钟门控（resetReg=3）排除核冲突
-- **根因方向**：host_cmd_fsm 连续 AXI 写事务上板时序（XW_B 响应），需 RTL 分析 + 仿真重现
-- 调试过程/脚本/工具见 `.tao/knowledge/board-debug-log.md`
-**Commit**：
-**测试结果**：
-**修改文件**：
-**验收结果**：
+**状态**：✅ **已验证**（2026-08-21，T007 上板运行 ALL PASS，见 board-debug-log.md）
+**根因定案**：T015 阻塞（host 写 ITCM 卡/SLVERR/无响应）**全部源于 uart_rx 亚稳态**（rx_in 无同步器，长命令 18 字节偶发 RX 字节错，错误率与命令长度相关），与 AXI/仲裁/TCM 路径无关；仿真理想时序不可复现
+**修复链**（最终 bit `T010-clean`）：
+1. `uart_rx.sv` 输入端加 2 级同步器（根治，W 命令 20/20）
+2. `uart_rx/uart_tx.sv` DIV 四舍五入（辅助）
+3. `build_top.tcl` phys_opt_design -hold_fix（顺带修 35 端点 hold 违例）
+4. **方案 A 清理**：验证 AXI 写 ITCM 正常后移除 host_tcm 直写端口（CoreAxi fork `8225240f` + host_cmd_fsm/top 清理），回到上游干净
+**当前进展**（验收逐条）：
+- ✅ 验收 1：`?`→HELP、`Q` 读状态（Q 原始响应 `0003000800000001` 正确）
+- ✅ 验收 2：`S` 启动后核 HALTED（CSR_STATUS bit0=1，csr_probe 实测）；注：load_elf 的 Q 轮询判定有误报（轮询时机在核跑完前），用 t007_result_check.py 回读确认
+- ✅ 验收 3：W/R 读写 DTCM(0x10000)/CSR 一致；写 ITCM(0x0) 后 S 启动可执行新内容
+- ✅ 验收 4：加载 T007 ELF（232 字，ITCM+DTCM）→ S 启动 → 回读**与仿真位精确一致**：out_mul={700,1600,2700,4000}、fout={2.0,3.0,5.0,7.0} **ALL PASS**
+- ✅ 验收 5：脚本已入库 `sim/`（load_elf_uart/itcm_direct_test/uart_raw_probe/uart_baud_probe/csr_probe/t007_result_check 等）
+**Commit**：主仓库 `89a0249`(DIV)/`a27ec5f`(同步器)/`d8c1549`(清理完成) 等；coralnpu fork `8225240f`
+**测试结果**：上板 UART W 命令 20/20；DTCM/ITCM 写 16/16；T007 上板运行 ALL PASS
+**修改文件**：`synth/rtl/uart_rx.sv`（同步器+DIV）、`uart_tx.sv`（DIV）、`host_cmd_fsm.sv`（方案A清理）、`top_coralnpu.sv`（清理）、`build_top.tcl`（hold_fix）、coralnpu fork `CoreAxi.scala`（移除 host_tcm）
 **新发现/坑**：
+- 上板调试脚本需 `python3 -u`（管道下 stdout 块缓冲导致"看不到进度"）
+- load_elf Q 轮询判定误报（应改用 t007_result_check 回读）
 **遗留问题**：
+- 无（T015 全部验收通过）
 
 ## 审阅记录
 

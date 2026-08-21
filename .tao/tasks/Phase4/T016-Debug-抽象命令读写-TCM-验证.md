@@ -15,11 +15,12 @@
 4. 若阶段 A 失败（busy 不释放/时钟门控影响），先排查仿真问题，不直接上板
 
 ## 完成区
-**状态**：待开始（阶段 A 完成、阶段 B 阻塞——详见 board-debug-log.md）
+**状态**：进行中（阶段 A 完成、阶段 B 阻塞——详见 board-debug-log.md；UART 已稳定，可重测阶段 B）
 **当前进展**：
 - ✅ **阶段 A（机器202 xsim）ALL CHECKS PASSED**：Debug 抽象命令写 ITCM[0x0]/ITCM[0x4]/DTCM[0x10000] 成功（R 命令读回一致）
 - ✅ **Debug 访问协议发现**：CoreAxiCSR Dbg 寄存器（0x30800/04/08 触发、0x30814 清响应队列）+ Debug 内部偏移（Data0/Data1/Dmcontrol/Command）
 - ❌ **阶段 B（上板）**：Debug 写 ITCM 未生效（Dmstatus/Abstractcs 读回失败/0），与仿真差异，需波形级排查
+- **上下文（2026-08-21）**：T015 根因定案为 uart_rx 亚稳态（已修复，W 命令 20/20）；T015 的 host W 直连写 TCM（AXI）已全部正常——阶段 B 的"Debug 写未生效"很可能同为 UART 层偶发（Debug 命令为长命令序列），**建议用 T010-clean bit + UART 修复后重测阶段 B**
 - 调试过程/脚本/工具见 `.tao/knowledge/board-debug-log.md`
 **Commit**：
 **测试结果**：
@@ -27,6 +28,7 @@
 **验收结果**：
 **新发现/坑**：
 **遗留问题**：
+- 阶段 B 待重测（UART 修复后）；若仍失败需波形级排查 Debug 通路
 
 ## 审阅记录
 
