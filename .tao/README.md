@@ -8,24 +8,39 @@
 - **202**（zzx-NF5280，192.168.200.202）：**所有 Vivado 任务**——仿真（xsim）、综合、实现、bitstream。fpga 主仓库 git 经 201 局域网同步（**主仓库仅限 201 push/pull**；202 外网已通，coralnpu submodule 及软件走外网）；按任务建子目录并尽可能创建 `.xpr` 工程；**sudo 命令必须经用户允许**。
 - 详见 `.tao/knowledge/registry.md`（路由）与 `synth-server.md`（拓扑）。
 
-## 仓库结构
+## 仓库结构（2026-08-21 现状）
 
 ```
 .
-├── .tao/            工作仓库交互目录（本文件所在处）
-│   ├── README.md    本文件：项目结构与角色流程
-│   ├── tasks/       任务文件（架构师拆分的任务）
-│   ├── knowledge/   知识沉淀（工具链、器件、时序等经验）
-│   └── logs/        会话日志
-├── coralnpu/        Google Coral NPU（git submodule，见下节）
-├── rtl/             源码（计划）
-├── sim/             模拟环境（计划）
-├── synth/           综合/实现工程（计划）
-├── docs/            文档（计划）
+├── .tao/             工作仓库交互目录
+│   ├── README.md     本文件：项目结构与角色流程
+│   ├── tasks/        任务文件（Phase0-4）
+│   ├── knowledge/    知识沉淀（registry/synth-server/board-notes/synth-notes/board-debug-log/flow-guide/soc-analysis/adr-*）
+│   └── logs/         会话/验收日志
+├── coralnpu/         Google Coral NPU（git submodule fork，见下节）
+├── scripts/          机器202 交互（run202*.sh）+ 综合/烧录流程（build_top/program_top/resume/wrapper.tcl）+ 仿真脚本（t016_xsim*.sh）
+├── sim/              上板调试/测试脚本（T007-* 程序、T015-* 上板脚本、T016-debug_write_tcm.py）
+├── synth/            综合工程
+│   ├── rtl/          上板顶层 RTL（top_coralnpu/host_cmd_fsm/uart_rx·tx/axi_master_stub）
+│   ├── sim/          仿真 tb（T010-tb_top/T016-tb_debug_test/T016-tb_uart_cont）
+│   ├── xdc/          引脚/时钟约束（top_coralnpu.xdc）
+│   └── out/          任务产物（<任务>-<描述>/；中间版本归档 _archive/）
+├── docs/             文档
 └── .gitignore
 ```
 
-当前仅完成仓库初始化，`rtl/`、`sim/`、`synth/` 目录随任务推进建立。
+## 工具链现状（2026-08-21）
+
+| 工具 | 版本/说明 | 执行地 |
+| --- | --- | --- |
+| bazel/bazelisk | 8.6.0（构建 coralnpu SV，需 `CC=clang-14`） | 201/202 |
+| Vivado | 2025.1（xsim 仿真/综合/实现/bitstream/烧录） | 202（仿真/综合）、201（烧录） |
+| Verilator/Cocotb | coralnpu 官方 sim（Phase0-2 已验证） | 202 |
+| riscv64 gcc | T007 程序交叉编译（rv32imf_zve32f） | 201 |
+| 目标器件 | xc7v2000tflg1925-1（S2C Dual Virtex-7 TAI LM） | 202 |
+| 上板 UART | 子板 AV42/AU42 → CH341 /dev/ttyUSB0 115200（`sg dialout`） | 201 |
+
+详见 `.tao/knowledge/synth-server.md`（综合拓扑）、`flow-guide.md`（全流程/目录约定/时间表）。
 
 ## coralnpu 子模块管理
 
@@ -49,11 +64,11 @@ coralnpu 以 git submodule 引入，作为首要复现对象。
 
 任务流转遵循"任务文件 → 实现 → 验收"的顺序，任务文件即契约。
 
-## 工具链现状
+## 工具链现状（2026-08-21）
 
-- **模拟**：待定（开源 iverilog/verilator，或 Vivado xsim）。
-- **综合**：待定（优先兼容 Vivado，目标器件 Xilinx/AMD）。
-- 决定后更新本文件，并在 `.tao/knowledge/` 沉淀使用记录。
+- **模拟**：Verilator/Cocotb（coralnpu 官方 sim，T001-T007 已验证）+ Vivado xsim（上板 RTL 功能验证）。
+- **综合/实现/bitstream**：Vivado 2025.1，目标器件 `xc7v2000tflg1925-1`（S2C Dual Virtex-7），机器202 执行（`scripts/build_top.tcl`，batch/proj 双模式）。
+- 详细使用记录见 `.tao/knowledge/synth-notes.md`（T009/T010 决策/结果/坑）与 `flow-guide.md`（全流程/时间表/目录约定）。
 
 ## 机器201环境约定
 
