@@ -24,5 +24,5 @@ CMD="$*"
 echo "==> 安排任务 $TASK 到 202（nohup，不等待）"
 echo "    命令: $CMD"
 ssh -o BatchMode=yes gxt@192.168.200.202 \
-    "mkdir -p ~/fpga/work/$TASK && cd ~/fpga/work/$TASK && { nohup bash -c '$CMD' > build.log 2>&1 < /dev/null & } && echo \$! > ~/fpga/work/$TASK/pid && echo '==> 已启动 $TASK (PID \$!)'"
+    "mkdir -p ~/fpga/work/$TASK && cd ~/fpga && { nohup bash -c '$CMD' > ~/fpga/work/$TASK/build.log 2>&1 < /dev/null & } && echo \$! > ~/fpga/work/$TASK/pid && echo '==> 已启动 $TASK (PID '\$!')'"
 echo "==> 完成安排。预计耗时请查 flow-guide.md；完成后用 run202_check.sh $TASK 查询状态"
