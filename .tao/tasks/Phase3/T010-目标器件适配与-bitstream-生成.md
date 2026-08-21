@@ -54,6 +54,13 @@
 - 本任务未 commit（主会话收尾时提交）；`synth/out/` 拉回副本不进 git（已有 .gitignore）
 - 首版/第二版构建日志与中间产物留存 `synth/out/T010/`（T010-build.log、T010-resume.log、T010-build2.log 等），供 T011 对比分析
 
+### 后续演进（2026-08-20/21，T015 关联）
+- **bit 版本链**：T010(首版) → T010-fix-clk(时钟源 L4/L3 + UART 引脚 AV42/AU42) → T010-hosttcm(方案A直写) → T010-hosttcm-hf(hold_fix) → T010-baudfix(DIV) → T010-sync(UART 同步器) → **T010-axiitcm(AXI 写验证) → T010-clean(最终，方案A清理)**
+- **T015 根因**（详见 board-debug-log）："host 写 ITCM 卡" = **uart_rx 亚稳态**（rx_in 无同步器），与 AXI/仲裁无关；修复 = uart_rx 2 级同步器 + DIV 四舍五入 + phys_opt -hold_fix
+- **方案 A 清理**：验证 AXI 写 ITCM 正常（T007 ALL PASS）后移除 host_tcm 直写端口，回到上游干净（coralnpu fork `8225240f`）
+- **最终 bit**：`synth/out/T010-clean/top_coralnpu.bit`（md5 9b2d8d0e...，WNS+0.950/hold 0/0 ERROR，proj 工程模式含 `.xpr`）
+- **验收补充**：T010 产出 bit 已上板跑通 T007（T015/T013 ALL PASS），上板验证闭环达成
+
 ## 审阅记录
 
 #### 第 1 轮 engineer 自审
