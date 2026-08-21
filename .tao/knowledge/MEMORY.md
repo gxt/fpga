@@ -2,14 +2,16 @@
 
 项目状态/进展摘要。任务完成后由主会话通过 `/complete` 更新。
 
-## 当前进展（2026-08-20 现场快照）
+## 当前进展（2026-08-21 现场快照）
 
-- **阶段**：Phase4 板级 · 方案 A（host_tcm 直写 ITCM）调试中
-- **主线**：T015 阻塞（host 经 AXI 写 ITCM 上板 SLVERR + 连续命令卡，仿真不可复现）。**方案 A**：改 CoreMiniAxi 加 host_tcm 直写端口（绕过 AXI），已实现并综合，**新 bit `T010-hosttcm` 已烧录上板，待 SW1 复位后测试 ITCM 直写**（应不再卡）
-- **下一步**：① 提醒复位（每次需用户确认）→ ② `sg dialout` 跑 `sim/uart_slow_test.py` 验证 ITCM 直写连续写 → ③ R 读回验证
-- **改动**：coralnpu fork `d74e0ac8`（CoreAxi host_tcm 端口，ITCM arbiter 4 端口）；主仓库 `72a4fae`（host_cmd_fsm W 写 ITCM 走直写）/`b4e6dcd`/`f30457f`
-- **环境**：bazel 需 `CC=clang-14`（Ubuntu 24.04 clang-18 modules 不兼容）；串口 `ttyUSB0`（CH341）需 `sg dialout`；`/tools/Xilinx/2025.1` Vivado
-- **详细调试过程**：`.tao/knowledge/board-debug-log.md`（T015/T016 全部调试、host_tcm 现场、工具/坑、恢复步骤）
+- **阶段**：Phase4 板级 · **T015 已达成**（UART host 通路 + 程序加载 + 上板运行）
+- **里程碑**：T007 标量+浮点程序在 S2C 板**上板运行 ALL PASS**（out_mul={700,1600,2700,4000}、fout={2.0,3.0,5.0,7.0}），模拟→综合→上板闭环打通
+- **T015 根因定案**：此前"host 写 ITCM 卡/无响应/SLVERR"全部源于 **uart_rx 亚稳态**（rx_in 无同步器，长命令偶发 RX 错），与 AXI/仲裁/直写无关；修复 = uart_rx 加 2 级同步器 + DIV 四舍五入 + phys_opt -hold_fix → W/DTCM/ITCM 全 16/16 稳定
+- **方案 A（host_tcm 直写 ITCM）**：已实现且工作（16/16），保留为 ITCM 加载通路
+- **当前 bit**：`synth/out/T010-sync/top_coralnpu.bit`（10:59，md5 514c5a56...，最新）
+- **下一步**：T015 收尾（修正 load_elf Q 轮询误报）→ T016 阶段 B（Debug 上板写）或直接推进 T013（NPU 功能验证）→ 完整 SoC 规划（soc-analysis.md）
+- **环境**：bazel `CC=clang-14`；串口 `ttyUSB0` 需 `sg dialout`；202 所有 Vivado 任务；测试脚本 `sim/`（itcm_direct_test/uart_raw_probe/uart_baud_probe/csr_probe/t007_result_check）
+- **详细调试**：`.tao/knowledge/board-debug-log.md`（根因证据链 + 修复链 + T007 上板记录）
 
 **机器分工**：机器201 = 仓库维护/opencode/板卡烧录；机器202 = 所有 Vivado 任务（xsim/综合/bitstream），git 局域网同步（fetch-then-pull），sudo 需用户允许。
 **Phase4 任务链**：T012（已验证）→ T015（阻塞，方案A中）→ T016（阶段A过/阶段B Debug 上板未生效）→ T013（前置 LED 修正）→ T014。

@@ -111,3 +111,28 @@
 **下一步验证（新 bit T010-hosttcm 已烧录待测）**：
 1. 复位后测 host_tcm 直写（source(3) 最低优先）：**直写也卡**→证明仲裁器饿死假设；**直写通**→AXI slave→FabricMux 路径问题
 2. 若饿死假设成立：修复方向 = host 写 ITCM 前暂停 core（halt/保持复位）或调整仲裁优先级
+
+### 根因定案：T015 "host 写 ITCM 卡" = uart_rx 亚稳态（2026-08-21）
+
+**结论**：此前所有"host 连续写卡/无响应/SLVERR"现象（AXI 写 ITCM、方案 A 直写 ITCM、DTCM ERR、CSR 读失败）**均为同一个根因：uart_rx 直接异步采样 rx_in（无同步器）导致的亚稳态**，与 TCM/AXI/仲裁/直写路径无关。仿真理想时序不复现。
+
+**证据链**：
+1. W 长命令（18 字节）失败率 30-45%，? 短命令（2 字节）100% → **错误率与命令长度相关**（亚稳态每字节 ~3.3%，命令越长越易中）
+2. DIV 四舍五入（21→22，波特率偏差 3.34%→1.36%）**无改善**（W 仍 11/20）→ 排除波特率
+3. 波特率探测（uart_baud_probe）：FPGA TX 115200 时 ? 6/6 → **clk_core=40MHz 精确**（排除时钟频率）
+4. uart_rx 加 2 级同步器后：? 20/20、W 20/20、DTCM 16/16、ITCM 直写 16/16 + 读回一致 → **根治**
+
+**修复**（T010-sync bit，10:59）：
+- `uart_rx.sv`：rx_in 加 2 级同步器（rx_q1/rx_q2，空闲=1 防误触发起始位）
+- `uart_rx.sv`/`uart_tx.sv`：DIV 四舍五入（RX 22，辅助改善）
+- `build_top.tcl`：phys_opt_design -hold_fix（顺带修 u_host→u_core 写路径 35 端点 hold 违例，WHS -0.113→+0.019）
+
+**方案 A 结论**：host_tcm 直写 ITCM（CoreAxi source(3)）已实现且工作正常（16/16），保留作为 ITCM 加载通路；原"AXI 写 ITCM 卡"实为 UART 亚稳态误判，非 AXI/仲裁问题。
+
+### T007 上板运行成功（2026-08-21，T015 目标达成）
+
+- bit：T010-sync（10:59，最新，md5 514c5a56...）
+- 加载：load_elf_uart.py 232 字（ITCM 0x0 204 字 + DTCM 0x10000 28 字）全成功
+- S 启动 OK → 核 HALTED（STATUS=1，CTRL=0）
+- **回读验证 ALL PASS**：out_mul={700,1600,2700,4000}、fout={2.0,3.0,5.0,7.0}
+- 注意：load_elf 的 Q 轮询判定有误报（Q 响应格式正确 `0003000800000001`，但轮询时机在核跑完前；可用 t007_result_check.py 直接回读确认）
