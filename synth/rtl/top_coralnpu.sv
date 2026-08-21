@@ -177,11 +177,6 @@ module top_coralnpu #(
     logic [31:0] s_awaddr;
     logic [5:0]  s_awid;
     logic [7:0]  s_awlen;
-    // ---- Direct host TCM write（ITCM 加载，绕过 AXI）----
-    logic        host_tcm_write_valid;
-    logic [31:0] host_tcm_write_addr;
-    logic [127:0] host_tcm_write_data;
-    logic [15:0] host_tcm_write_strb;
     logic [2:0]  s_awsize;
     logic [1:0]  s_awburst;
     logic [3:0]  s_awcache, s_awqos, s_awregion;
@@ -251,11 +246,7 @@ module top_coralnpu #(
         .s_rdata   (s_rdata),
         .s_rid     (s_rid),
         .s_rresp   (s_rresp),
-        .s_rlast   (s_rlast),
-        .host_tcm_write_valid (host_tcm_write_valid),
-        .host_tcm_write_addr  (host_tcm_write_addr),
-        .host_tcm_write_data  (host_tcm_write_data),
-        .host_tcm_write_strb  (host_tcm_write_strb)
+        .s_rlast   (s_rlast)
     );
 
     // ---- CoreMiniAxi（bazel 生成，不改动） ----
@@ -326,16 +317,6 @@ module top_coralnpu #(
         .io_axi_slave_read_data_bits_id   (s_rid),
         .io_axi_slave_read_data_bits_resp (s_rresp),
         .io_axi_slave_read_data_bits_last (s_rlast),
-        // ---- Direct host TCM write port（ITCM 加载，绕过 AXI） ----
-        .io_host_tcm_readDataAddr_valid  (1'b0),
-        .io_host_tcm_readDataAddr_bits   (32'h0),
-        .io_host_tcm_readData_valid      (),
-        .io_host_tcm_readData_bits       (),
-        .io_host_tcm_writeDataAddr_valid (host_tcm_write_valid),
-        .io_host_tcm_writeDataAddr_bits  (host_tcm_write_addr),
-        .io_host_tcm_writeDataBits       (host_tcm_write_data),
-        .io_host_tcm_writeDataStrb       (host_tcm_write_strb),
-        .io_host_tcm_writeResp           (),
         // ---- m_axi（core → 外部，接到响应桩） ----
         .io_axi_master_write_addr_ready (m_awready),
         .io_axi_master_write_addr_valid (m_awvalid),
