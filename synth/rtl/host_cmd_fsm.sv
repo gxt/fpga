@@ -345,11 +345,7 @@ module host_cmd_fsm (
                         if (rx_data == "\n" || rx_data == "\r") begin
                             case (cmd_kind)
                                 3'd0: begin                                // W
-                                    if (cmd_addr < 32'h00002000) begin
-                                        state <= XW_HOST;                  // ITCM 直写（绕过 AXI）
-                                    end else begin
-                                        state <= XW_AW;                    // DTCM/CSR 走 AXI
-                                    end
+                                    state <= XW_AW;                    // ITCM 也走 AXI（验证 AXI 写 ITCM，暂时关闭直写分支）
                                 end
                                 3'd1: state <= XR_AR;                      // R
                                 3'd2: begin                                // S
