@@ -146,3 +146,10 @@
 - 结果：**AXI 写 ITCM 8/8 + 读回一致；load_elf 232 字全成功；T007 运行 ALL PASS**
 - **结论：host_tcm 直写端口非必需**（UART 同步器修复后 AXI 写 ITCM 正常）；方案 A 可移除回到上游干净状态
 - 注意：load_elf 需 `python3 -u`（管道下 stdout 块缓冲导致"看不到进度"）
+
+### 方案 A 清理完成（2026-08-21，T010-clean bit）
+- 移除 host_tcm 直写端口：CoreAxi.scala（coralnpu fork 8225240f，ITCM/DTCM arbiter 3 端口）+ host_cmd_fsm（删 XW_HOST/直写信号）+ top（删 io_host_tcm）
+- CoreMiniAxi.sv 重建（无 io_host_tcm），回到上游干净状态
+- bit：T010-clean（md5 9b2d8d0e...，WNS+0.950/WHS+0.016/hold 0/0 ERROR，proj 工程模式）
+- 验证：load_elf 232 字（纯 AXI 写 ITCM）全成功 + T007 运行 **ALL PASS**
+- 结论：host_tcm 直写端口已彻底移除，仅用 AXI 写 ITCM，设计回到上游干净
