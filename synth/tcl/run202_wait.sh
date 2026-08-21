@@ -3,13 +3,13 @@
 # run202_wait.sh —— 阻塞等待 202 远程任务结束（单条命令，本地零轮询）
 #
 # 用法: run202_wait.sh <task> [pid_pattern]
-#   默认 pid_pattern: work/<task>（匹配 vivado -tclargs work/<task> 命令行）
+#   默认 pid_pattern: [b]uild_top.tcl.*work/<task>（[b] 正则字符类排除 ssh 自身命令行）
 #
 # 行为: 远端 while pgrep; do sleep 15; done → 进程消失即返回 → 显示日志尾部
 # =============================================================================
 set -e
 TASK="$1"
-PAT="${2:-work/$TASK}"
+PAT="${2:-[b]uild_top.tcl.*work/$TASK}"
 if [ -z "$TASK" ]; then
     echo "用法: run202_wait.sh <task> [pid_pattern]"
     exit 1
