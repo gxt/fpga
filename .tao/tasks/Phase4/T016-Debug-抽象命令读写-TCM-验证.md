@@ -39,4 +39,59 @@
 （工程师自审 subagent 的意见、问题、判决及 finding 处置）
 
 #### 第 1 轮 reviewer 验收
-（审查者独立验证的重跑记录、约束核验、判决；Needs Revision 返工后，下一轮标 `第 2 轮`）
+
+**判决：Needs Revision**（唯一阻塞点：文档指定的阶段 A 验收命令在当前仓库状态下直接失败；底层验证本身通过，返工为脚本路径修正）
+
+**1. 重跑记录（独立执行，真实输出/退出码）**
+
+- **验收命令原样重跑** `ssh gxt@192.168.200.202 "bash ~/t016_xsim.sh"`（日志 `.tao/logs/T016-review-xsim.log`）：
+  ```
+  EXIT=1
+  cat: ../../synth/sim/tb_debug_test.sv: No such file or directory
+  ```
+  **失败**。根因：仓库 refactor commit `023c6bf`（8/21 16:57）将 `synth/sim/tb_debug_test.sv` 重命名为 `T016-tb_debug_test.sv`（`tb_uart_cont.sv` → `T016-tb_uart_cont.sv`），但 202 上 `/home/gxt/t016_xsim.sh` 与 `~/t016_xsim_cont.sh`（仓库外脚本）仍引用旧文件名 `../../synth/sim/tb_debug_test.sv` / `tb_uart_cont.sv`。模块名未变（文件内仍是 `module tb_debug_test;` / `module tb_uart_cont;`）。
+- **修正路径后的等价重跑**（`/tmp/t016_xsim_review.sh`，仅改文件路径引用，design unit 用模块名 `tb_debug_test`；日志 `.tao/logs/T016-review-xsim-final.log`）：
+  ```
+  TB: 写 Dmcontrol haltreq
+  TB: halt 确认 0（CSR_STATUS=00000000，抽象命令 cmderr=0 即证生效）
+  TB: PASS ITCM[0x0] 读回 = deadbeef
+  TB: PASS DTCM[0x10000] 读回 = 12345678
+  TB: PASS Debug 写 ITCM[0x4] R 读回 = cafebabe
+  === T016-A: ALL CHECKS PASSED ===
+  EXIT=0
+  ```
+  **底层验证通过**：Debug 抽象命令（Dbg 寄存器 0x30800/04/08/14 + Data0/Data1/Dmcontrol/Command）写 ITCM[0x0]/DTCM[0x10000]/ITCM[0x4] 并经 R 命令读回一致，cmderr=0。
+- **修正路径后重跑 cont 仿真**（`T016-tb_uart_cont`，日志 `.tao/logs/T016-review-xsim-cont.log`）：
+  ```
+  TB: 40MHz 连续写 DTCM 成功 16/16
+  TB: 40MHz 连续写 ITCM 成功 16/16
+  === 复现完成（DTCM 16/16, ITCM 16/16）===
+  EXIT=0
+  ```
+- **脚本逻辑复核**（`sim/T016-debug_write_tcm.py`）：Dbg 协议与 tb/board-debug-log 完全一致——0x30800=DbgReqAddr（写 Debug 内部偏移）、0x30804=DbgReqData、0x30808=DbgReqOp（1=READ/2=WRITE 触发）、0x30810=DbgRspData、0x30814=写清响应队列；Debug 内部偏移 Data0=0x4/Data1=0x5/Dmcontrol=0x10/Dmstatus=0x11/Abstractcs=0x16/Command=0x17；Command=0x02230000 = Access Memory 32bit 写（cmdtype=2、aamsize=2、write=1）✅。写序 Data0→Data1→Command 与 tb 相同。
+- **阶段 B**（上板 Debug 写 ITCM[0x0]=DEADBEEF、[0x4]=CAFEBABE → R 读回一致）：以 board-debug-log（2026-08-21 记录）复核，未独立重跑（需板卡复位）。
+
+**2. 约束核验**
+
+- 阶段 A 在阶段 B 之前：日志时间线（阶段 A 8/20 → 阶段 B 8/21 重测）✅
+- 独立 tb、不改 T010-tb_top.sv：tb 为独立文件 `synth/sim/T016-tb_debug_test.sv` ✅
+- 抽象命令需核 halted（cmderr=4 当未 halt）：tb 先写 Dmcontrol haltreq 并经 Q 轮询 + cmderr=0 确认 ✅
+- Access Memory 仅支持 ITCM/DTCM：本验证只写 ITCM/DTCM ✅
+- 阶段 A 失败先排查仿真再上板：日志显示阶段 A 先验证协议（含"Debug 读返回 0"已知限制），后上板 ✅
+
+**3. 返工要求（具体修改建议）**
+
+- **R1（必改）**：更新 202 上 `~/t016_xsim.sh` 与 `~/t016_xsim_cont.sh` 的文件列表——`../../synth/sim/tb_debug_test.sv` → `../../synth/sim/T016-tb_debug_test.sv`、`../../synth/sim/tb_uart_cont.sv` → `../../synth/sim/T016-tb_uart_cont.sv`（xvlog 的 src 文件名随之改；xelab 的 design unit 保持模块名 `tb_debug_test`/`tb_uart_cont` 不变）。**预期结果**：`bash ~/t016_xsim.sh` → ALL CHECKS PASSED 且 exit 0（已由本次修正路径重跑证实）；或将该脚本纳入仓库 `scripts/` 并同步引用，避免再漂移。
+- 无需改 RTL/脚本逻辑（底层验证已通过）。
+
+**边界说明**：阶段 B 上板实测以已记录证据复核（未独立重跑）。
+
+#### 第 2 轮 reviewer 验收（返工处理）
+
+**判决：Accepted**
+
+**返工执行（R1）**：202 上 `~/t016_xsim.sh` / `~/t016_xsim_cont.sh` 已更新 tb 文件引用（`synth/sim/tb_debug_test.sv`→`synth/sim/T016-tb_debug_test.sv`、`tb_uart_cont.sv`→`T016-tb_uart_cont.sv`，含 xvlog 的 src 文件名），xelab 仍用模块名 `tb_debug_test`/`tb_uart_cont`。
+
+**返工后复跑**（主会话执行，202）：`bash ~/t016_xsim.sh` → **ALL CHECKS PASSED**（ITCM[0x0]=deadbeef / DTCM[0x10000]=12345678 / ITCM[0x4]=cafebabe，exit 0）
+
+**结论**：T016 全部验收通过（阶段 A xsim + 阶段 B 上板），返工闭合。
