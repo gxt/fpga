@@ -24,10 +24,22 @@ module uart_rx #(
     logic [3:0]        bit_idx;              // 0=start, 1..8=data, 9=stop
     logic [7:0]        shreg;
     logic              valid_r;
+    // 异步输入同步（2 级寄存器，消除亚稳态；空闲=1 防误触发起始位）
+    logic              rx_q1, rx_q2;
 
     assign rx_busy   = busy_r;
     assign rx_valid  = valid_r;
     assign rx_data   = shreg;
+
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            rx_q1 <= 1'b1;
+            rx_q2 <= 1'b1;
+        end else begin
+            rx_q1 <= rx_in;
+            rx_q2 <= rx_q1;
+        end
+    end
 
     always_ff @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -41,7 +53,7 @@ module uart_rx #(
             valid_r <= 1'b0;
             if (!busy_r) begin
                 // 空闲：检测起始位下降沿
-                if (!rx_in) begin
+                if (!rx_q2) begin
                     busy_r  <= 1'b1;
                     clk_cnt <= '0;
                     osr_cnt <= 4'd0;
@@ -53,18 +65,18 @@ module uart_rx #(
                 if (osr_cnt == 4'd8) begin
                     // 每个 bit 的中间采样点
                     if (bit_idx == 4'd0) begin
-                        if (rx_in) begin
+                        if (rx_q2) begin
                             busy_r <= 1'b0;  // start 位非 0：帧错误，放弃
                         end else begin
                             bit_idx <= bit_idx + 1'b1;
                         end
                     end else if (bit_idx >= 4'd1 && bit_idx <= 4'd8) begin
-                        shreg   <= {rx_in, shreg[7:1]};
+                        shreg   <= {rx_q2, shreg[7:1]};
                         bit_idx <= bit_idx + 1'b1;
                     end else begin
                         // stop 位：置 1 才算有效帧
                         busy_r <= 1'b0;
-                        if (rx_in) begin
+                        if (rx_q2) begin
                             valid_r <= 1'b1;
                         end
                     end
