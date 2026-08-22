@@ -1,10 +1,12 @@
 # 板卡信息
 
+> **权威信息来源**：板卡硬件信息一律以 `docs/DualV7/` 目录为准（板卡手册/原理图/知识库，含 DDR3/以太网/UART/SD 等实测配置）。本文件的 M1 开发过程记录仅作补充参考，若有冲突以 docs/DualV7 为准。
+
 ## 硬件配置
 
 - **板卡型号**：S2C Dual Virtex-7 TAI Logic Module（TAI LM）
 - **厂商**：S2C（思尔芯）
-- **文档**：`docs/board/Dual V7 Hardware Reference Manual.pdf`（v1.08）
+- **文档**：`docs/board/Dual V7 Hardware Reference Manual.pdf`（v1.08）+ `docs/DualV7/`（权威知识库）
 
 ## 器件（来源：Hardware Reference Manual §4.1 Table 4-1）
 

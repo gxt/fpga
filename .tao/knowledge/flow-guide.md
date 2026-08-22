@@ -112,3 +112,9 @@
 - `scripts/build_top.tcl`：综合+实现+bit（batch/proj 双模式）
 - `scripts/program_top.tcl`：烧录
 - `sim/*.py`：上板测试脚本（T015-itcm_direct_test/T015-uart_raw_probe/T015-load_elf/T015-t007_result_check 等）
+
+### 板卡信息源约定（2026-08-22）
+
+- **板卡硬件信息一律以 `docs/DualV7/` 为权威源**（板卡手册/原理图/知识库），**不要从 M1 开发过程记录（board-notes/board-debug-log/对话记忆）推断板卡能力**
+- M1 过程中曾错误认为"DualV7 无 DDR 控制器"——实际板卡**支持 DDR3**（docs/DualV7 §03.7，ddr_mem 基址 0x80000000 与完整 SoC 一致）
+- 涉及板卡资源（存储/外设/引脚/时钟）时，先查 docs/DualV7，再下结论

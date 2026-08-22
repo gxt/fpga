@@ -88,12 +88,13 @@ CoralNPUChiselSubsystem = **TileLink-UL（TL-UL）crossbar 主干** + 多主机 
 ### 有利条件
 1. **代码全部现成**：soc/ 目录完整（subsystem/xbar/config/外设），已通过 lint/build（CoralNPU 项目 CI）
 2. **构建链路已验证可行**：`bazel build //hdl/chisel/src/soc:coralnpu_chisel_subsystem_cc_library_emit_verilog` 可生成完整 SoC SV（与 CoreMiniAxi 同链路，`--action_env=CC=clang-14`）
-3. **参数可裁剪**：TlulSramParameters（4MB 可缩小）、PlicParameters、GPIO 宽度均可调；DDR/ISP 是外部接口，上板可不接
+3. **参数可裁剪**：TlulSramParameters（4MB 可缩小）、PlicParameters、GPIO 宽度均可调；ISP 是外部接口，上板可不接
+4. **板卡有 DDR3**（docs/DualV7 权威信息，非 M1 过程）：DDR3 SO-DIMM（J14，MT41K256M16XX-125，64-bit 双 rank，MIG 800MT/s），基址 `0x80000000` **与完整 SoC `ddr_mem` 基址一致**；已有 chipyard/RocketChip 在此板跑通 DDR+CPU+外设（docs/DualV7 05/06）→ **DDR 可保留（需 MIG 生成）**
 4. **S2C 资源充足**：7V690T = 1221600 LUT（现用 3.56%）
 
 ### 风险与挑战
 1. **资源**：RVV+FPU 完整核 + crossbar + 外设，预估 LUT 用量（可能 10-25%），需综合实测；**4MB SRAM ≈ 910 RAMB36 会爆**（总数 1292）→ 必须缩小（如 256KB ≈ 57 块）
-2. **DDR/ISP 上板不可用**：S2C 板无 DDR 控制器 IP 与摄像头 → 裁剪掉，或仅保留 TLUL 端口留空
+2. **DDR3 可用 / ISP 需裁**：板卡**有 DDR3**（docs/DualV7：SO-DIMM + MIG 800MT/s，ddr_mem 基址 0x80000000 匹配）；**ISP 无摄像头需裁剪**（或仅保留 TLUL 端口留空）
 3. **多时钟域**：isp/ddr 域需外部时钟源或接地处理
 4. **UART 外设缺失**：uart0/uart1 需自己写 TLUL UART（或复用现有 host_cmd_fsm 改造成 TLUL 从）
 5. **调试链**：DM 端口（dm_req/dm_rsp）暴露需外部 debug 主机；现有 UART host 通路可改造为 uart1 从访问
@@ -101,7 +102,7 @@ CoralNPUChiselSubsystem = **TileLink-UL（TL-UL）crossbar 主干** + 多主机 
 
 ## 4. 推荐路线（裁剪版完整 SoC）
 
-**目标**：先在 S2C 板跑通"NPU 核 + TL-UL crossbar + 基础外设 + UART 加载"的完整 SoC，DDR/ISP 后续按需。
+**目标**：先在 S2C 板跑通"NPU 核 + TL-UL crossbar + 基础外设 + UART 加载 + **DDR3**"的完整 SoC，ISP 后续按需。
 
 ### 阶段 A：最小完整 SoC（MVP）
 - CoreTlul（含 RVV/FPU，ITCM/DTCM 8KB/32KB）
@@ -109,12 +110,12 @@ CoralNPUChiselSubsystem = **TileLink-UL（TL-UL）crossbar 主干** + 多主机 
 - 外设：**clint + plic + gpio + spi_master + sram（缩小 256KB）**
 - **TLUL UART**（新建，或把现有 host_cmd_fsm 挂到 uart1 位置）
 - 引导：保留 **spi2tlul**（SPI 从机）+ 现有 **UART host 加载**双通道
-- 裁剪：DDR/ISP/i2c/dma/spi_master_flash（先不接）
+- 裁剪：ISP/i2c/dma/spi_master_flash（先不接）；**DDR3 保留**（MIG + 0x80000000）
 - 上板：bazel 生成 SV → top 例化（S2C 时钟/UART/LED 引脚）→ 综合 → 烧录
 
 ### 阶段 B：扩展
 - DMA、i2c、spi_master_flash、autoboot
-- SRAM 扩大、DDR（如引入外部 DDR IP）
+- SRAM 扩大、DDR3 位宽/容量优化（MIG 已板载）
 
 ### 阶段 C：完整
 - ISP（如有外部输入源）、多时钟域 DDR
