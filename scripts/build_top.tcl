@@ -53,7 +53,7 @@ if {$mode eq "proj"} {
         $top_rtl_dir/axi_master_stub.sv]
     add_files -fileset constrs_1 -norecurse $xdc_dir/top_coralnpu.xdc
     set_property top $top [get_filesets sources_1]
-    set_property verilog_define {VLEN_128 RVVI_ON ZVE32F_ON} [get_filesets sources_1]
+    set_property verilog_define {{VLEN_128 {}} {RVVI_ON {}} {ZVE32F_ON {}}} [get_filesets sources_1]
     update_compile_order -fileset sources_1
     puts "==> 工程已创建: $work_dir/$proj_name.xpr"
 } else {
