@@ -15,7 +15,7 @@ module tb_rvv_elf;
 
     top_coralnpu_rvv #(
         .CORE_CLK_HZ (50_000_000),
-        .BAUD        (781250),
+        .BAUD        (1_562_500),
         .USE_MMCM    (0)
     ) u_dut (
         .clk_p(clk_p), .clk_n(clk_n), .rst_btn_n(rst_btn_n),
@@ -24,7 +24,7 @@ module tb_rvv_elf;
     );
 
     always #10 clk_p = ~clk_p;
-    localparam int BIT_NS = 1280;
+    localparam int BIT_NS = 640;
 
     task send_bit(input logic b); uart_rx = b; #(BIT_NS); endtask
     task send_byte(input logic [7:0] byte_in);
