@@ -106,11 +106,14 @@ module tb_rvv_elf;
 
         $display("=== T017: RVV 核加载 t007_rvv ELF（UART host 通路）===");
 
-        // 1) 加载 ELF（W 命令文件）
+        // 1) 加载 ELF（W 命令文件，每条等待 OK 确认）
         fd = $fopen(`WCMD_FILE, "r");
         if (!fd) begin $display("TB: FAIL WCMD_FILE 打开失败"); $finish; end
         while (!$feof(fd)) begin
-            if ($fgets(line, fd)) send_str(line);
+            if ($fgets(line, fd)) begin
+                send_str(line);
+                recv_expect_str("OK\n");
+            end
         end
         $fclose(fd);
         $display("TB: ELF 加载完成（W 命令）");
@@ -170,7 +173,7 @@ module tb_rvv_elf;
     end
 
     initial begin
-        #200_000_000;   // 200ms 超时（RVV 程序 + 大量 W 命令）
+        #800_000_000;   // 800ms 超时（380 条 W 命令加载 + RVV 程序运行）
         $display("TB: TIMEOUT");
         $finish;
     end
