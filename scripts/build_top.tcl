@@ -20,14 +20,17 @@ set rtl_dir     [lindex $argv 1]
 set top_rtl_dir [lindex $argv 2]
 set xdc_dir     [lindex $argv 3]
 set mode        [lindex $argv 4]
+set core_sv     [lindex $argv 5]
+set top         [lindex $argv 6]
 set part        "xc7v2000tflg1925-1"
-set top         "top_coralnpu"
 
+if {$mode eq ""} { set mode "proj" }
+if {$core_sv eq ""} { set core_sv "CoreMiniAxi.sv" }
+if {$top eq ""} { set top "top_coralnpu" }
 if {$work_dir eq ""} { error "缺少 work_dir 参数" }
 if {$rtl_dir eq ""} { error "缺少 rtl_dir 参数" }
 if {$top_rtl_dir eq ""} { error "缺少 top_rtl_dir 参数" }
 if {$xdc_dir eq ""} { error "缺少 xdc_dir 参数" }
-if {$mode eq ""} { set mode "proj" }
 
 file mkdir $work_dir
 puts "==> T010 build: part=$part top=$top work=$work_dir mode=$mode"
@@ -41,8 +44,8 @@ if {$mode eq "proj"} {
     set proj_name [file tail [file normalize $work_dir]]
     create_project $proj_name $work_dir -part $part -force
     add_files -norecurse [list \
-        $rtl_dir/CoreMiniAxi.sv \
-        $top_rtl_dir/top_coralnpu.sv \
+        $rtl_dir/$core_sv \
+        $top_rtl_dir/$top.sv \
         $top_rtl_dir/uart_rx.sv \
         $top_rtl_dir/uart_tx.sv \
         $top_rtl_dir/host_cmd_fsm.sv \
@@ -52,8 +55,8 @@ if {$mode eq "proj"} {
     update_compile_order -fileset sources_1
     puts "==> 工程已创建: $work_dir/$proj_name.xpr"
 } else {
-    read_verilog -sv $rtl_dir/CoreMiniAxi.sv
-    read_verilog -sv $top_rtl_dir/top_coralnpu.sv
+    read_verilog -sv $rtl_dir/$core_sv
+    read_verilog -sv $top_rtl_dir/$top.sv
     read_verilog -sv $top_rtl_dir/uart_rx.sv
     read_verilog -sv $top_rtl_dir/uart_tx.sv
     read_verilog -sv $top_rtl_dir/host_cmd_fsm.sv
