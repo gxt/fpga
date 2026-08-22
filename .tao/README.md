@@ -14,7 +14,7 @@
 .
 ├── .tao/             工作仓库交互目录
 │   ├── README.md     本文件：项目结构与角色流程
-│   ├── tasks/        任务文件（Phase0-4）
+│   ├── tasks/        任务文件（M1/Phase0-4 已完成归档、M2/ 第二阶段）
 │   ├── knowledge/    知识沉淀（registry/synth-server/board-notes/synth-notes/board-debug-log/flow-guide/soc-analysis/adr-*）
 │   └── logs/         会话/验收日志
 ├── coralnpu/         Google Coral NPU（git submodule fork，见下节）
