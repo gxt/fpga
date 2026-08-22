@@ -44,6 +44,7 @@ if {$mode eq "proj"} {
     set proj_name [file tail [file normalize $work_dir]]
     create_project $proj_name $work_dir -part $part -force
     add_files -norecurse [list \
+        $top_rtl_dir/rvv_defines.svh \
         $rtl_dir/$core_sv \
         $top_rtl_dir/$top.sv \
         $top_rtl_dir/uart_rx.sv \
@@ -56,6 +57,7 @@ if {$mode eq "proj"} {
     update_compile_order -fileset sources_1
     puts "==> 工程已创建: $work_dir/$proj_name.xpr"
 } else {
+    read_verilog -sv $top_rtl_dir/rvv_defines.svh
     read_verilog -sv $rtl_dir/$core_sv
     read_verilog -sv $top_rtl_dir/$top.sv
     read_verilog -sv $top_rtl_dir/uart_rx.sv
