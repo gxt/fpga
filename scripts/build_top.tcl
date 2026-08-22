@@ -65,7 +65,7 @@ if {$mode eq "proj"} {
 }
 
 # ---- 综合 ----
-synth_design -top $top -part $part
+synth_design -top $top -part $part -verilog_define VLEN_128
 
 # ---- 实现（中间阶段报告/checkpoint 默认不产出，需要时从 post_route.dcp 重生成） ----
 opt_design
