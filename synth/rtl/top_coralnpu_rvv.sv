@@ -3,8 +3,8 @@
 // 结构：
 //   clk_p/clk_n（OSC1，默认差分 LVDS）→ IBUFDS → MMCME2_BASE → BUFG → clk_core
 //   rst_btn_n（SW1，按下=0）& mmcm_locked → 复位同步器 → core/FSM 复位
-//   host_cmd_fsm + uart_rx/uart_tx（RS232 J26）→ 驱动 RvvCoreMiniAxi 的 s_axi（程序加载/CSR/回读）
-//   RvvCoreMiniAxi 的 m_axi → axi_master_stub（防 core 外部访问挂死）
+//   host_cmd_fsm + uart_rx/uart_tx（RS232 J26）→ 驱动 RvvCoreMiniSynthAxi 的 s_axi（程序加载/CSR/回读）
+//   RvvCoreMiniSynthAxi 的 m_axi → axi_master_stub（防 core 外部访问挂死）
 //   LED40/41/42 显示 halted / fault / mmcm_locked
 //
 // 器件：xc7v2000tflg1925-1（F1）
@@ -249,7 +249,7 @@ module top_coralnpu_rvv #(
         .s_rlast   (s_rlast)
     );
 
-    // ---- RvvCoreMiniAxi（bazel 生成，不改动） ----
+    // ---- RvvCoreMiniSynthAxi（bazel 生成，不改动） ----
     logic core_halted, core_fault, core_wfi;
     logic m_awvalid, m_awready;
     logic [31:0] m_awaddr;
@@ -274,7 +274,7 @@ module top_coralnpu_rvv #(
     logic [1:0]  m_rresp;
     logic m_rlast;
 
-    RvvCoreMiniAxi u_core (
+    RvvCoreMiniSynthAxi u_core (
         .io_aclk                        (clk_core),
         .io_aresetn                     (rst_n),
         // ---- s_axi（host → core） ----

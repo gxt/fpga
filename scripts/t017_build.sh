@@ -2,7 +2,7 @@
 # =============================================================================
 # t017_build.sh —— T017 RVV 核综合（202 执行，预处理 RvvCoreMiniAxi 加宏头）
 # 解决 Vivado read_verilog 编译单元独立、`define 不跨文件/不生效问题：
-#   生成 RvvCoreMiniAxi_def.sv（头部注入 `define VLEN_128/RVVI_ON/ZVE32F_ON）
+#   生成 RvvCoreMiniSynthAxi_def.sv（头部注入 `define VLEN_128/RVVI_ON/ZVE32F_ON）
 # 用法: bash ~/fpga/scripts/t017_build.sh <task>
 # =============================================================================
 set -e
@@ -16,9 +16,9 @@ mkdir -p work/$TASK
 {
     echo '`define VLEN_128'
     echo '`define ZVE32F_ON'
-    cat rtl_out/rvv_core_mini_axi/RvvCoreMiniAxi.sv
-} > work/$TASK/RvvCoreMiniAxi_def.sv
-echo "==> RvvCoreMiniAxi_def.sv 生成（含 VLEN 宏）"
+    cat rtl_out/rvv_core_mini_axi/RvvCoreMiniSynthAxi.sv
+} > work/$TASK/RvvCoreMiniSynthAxi_def.sv
+echo "==> RvvCoreMiniSynthAxi_def.sv 生成（含 VLEN 宏）"
 
 vivado -mode batch -source scripts/build_top.tcl \
-    -tclargs work/$TASK work/$TASK synth/rtl synth/xdc proj RvvCoreMiniAxi_def.sv top_coralnpu_rvv
+    -tclargs work/$TASK work/$TASK synth/rtl synth/xdc proj RvvCoreMiniSynthAxi_def.sv top_coralnpu_rvv
