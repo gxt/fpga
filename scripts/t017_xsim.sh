@@ -15,6 +15,6 @@ for f in ../../rtl_out/rvv_core_mini_axi/RvvCoreMiniAxi.sv ../../synth/rtl/top_c
   { echo '`timescale 1ns/1ps'; cat "$f"; } > "src/$base"
 done
 GLBL=/tools/Xilinx/2025.1/Vivado/data/verilog/src/glbl.v
-xvlog --sv --define XSIM --define VLEN_128 --define RVVI_ON --define ZVE32F_ON --define "WCMD_FILE=\"/home/gxt/fpga/work/T017-rvv-core/t007_rvv.wcmd\"" "$GLBL" src/RvvCoreMiniAxi.sv src/top_coralnpu_rvv.sv src/uart_rx.sv src/uart_tx.sv src/host_cmd_fsm.sv src/axi_master_stub.sv src/T017-tb_rvv_elf.sv
+xvlog --sv --define XSIM --define VLEN_128 --define ZVE32F_ON --define "WCMD_FILE=\"/home/gxt/fpga/work/T017-rvv-core/t007_rvv.wcmd\"" "$GLBL" src/RvvCoreMiniAxi.sv src/top_coralnpu_rvv.sv src/uart_rx.sv src/uart_tx.sv src/host_cmd_fsm.sv src/axi_master_stub.sv src/T017-tb_rvv_elf.sv
 xelab --debug typical -L unisim -L unisims_ver tb_rvv_elf -s tb_rvv_sim
 xsim tb_rvv_sim -R

@@ -15,7 +15,6 @@ mkdir -p work/$TASK
 # 预处理：文件头注入 RVV 宏（Vivado 编译单元内生效）
 {
     echo '`define VLEN_128'
-    echo '`define RVVI_ON'
     echo '`define ZVE32F_ON'
     cat rtl_out/rvv_core_mini_axi/RvvCoreMiniAxi.sv
 } > work/$TASK/RvvCoreMiniAxi_def.sv

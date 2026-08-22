@@ -53,7 +53,7 @@ if {$mode eq "proj"} {
         $top_rtl_dir/axi_master_stub.sv]
     add_files -fileset constrs_1 -norecurse $xdc_dir/top_coralnpu.xdc
     set_property top $top [get_filesets sources_1]
-    set_property verilog_define {{VLEN_128 {}} {RVVI_ON {}} {ZVE32F_ON {}}} [get_filesets sources_1]
+    set_property verilog_define {{VLEN_128 {}} {ZVE32F_ON {}}} [get_filesets sources_1]
     update_compile_order -fileset sources_1
     puts "==> 工程已创建: $work_dir/$proj_name.xpr"
 } else {
@@ -68,7 +68,7 @@ if {$mode eq "proj"} {
 }
 
 # ---- 综合 ----
-synth_design -top $top -part $part -verilog_define {VLEN_128,RVVI_ON,ZVE32F_ON}
+synth_design -top $top -part $part -verilog_define {VLEN_128,ZVE32F_ON}
 
 # ---- 实现（中间阶段报告/checkpoint 默认不产出，需要时从 post_route.dcp 重生成） ----
 opt_design
