@@ -11,6 +11,8 @@
 - **所有 bazel（构建、生成 SV）与 vivado（综合、仿真、烧录）相关命令，由用户在 terminal 单独执行**
 - **脚本文件规范**：我在执行地机器的 `workspace/<task>-<subtask>/` 目录下生成脚本文件 **`working.sh`**，log 统一为 **`working.log`**（重定向在脚本内完成）
 - 用户执行：`bash ~/fpga/workspace/<task>-<subtask>/working.sh`（201 与 202 各自在对应机器的 `~/fpga/workspace/<task>-<subtask>/` 下运行）
+- **生成 working.sh 时必须展示其内容**给用户（用户可确认命令无误）
+- **working.sh 不依赖运行时路径**：一律用绝对路径（`~/fpga/...`），不依赖执行时的 cwd
 - 执行完成后**用户通知我**，我读取 `working.log` 做分析
 - 我的职责：
   1. 生成 `working.sh`（含要执行的命令 + log 重定向 + 预期产出注释，清晰、单条可读）
