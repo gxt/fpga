@@ -4,7 +4,7 @@
 # 用法：./build_t007.sh
 #
 # 功能：用 coralnpu_v2 工具链（riscv64-unknown-elf-gcc，直接调用，不改 coralnpu/ 内任何文件）
-#       交叉编译 sim/ 下的两个测试程序 ELF：
+#       交叉编译 tests/ 下的两个测试程序 ELF：
 #         - build/t007_scalar_fp_test.elf   标量浮点+整数+ZBB（跑 core_mini_axi_sim）
 #         - build/t007_rvv_add_test.elf     RVV 向量加法（跑 rvv_core_mini_axi_sim）
 #

@@ -7,9 +7,9 @@
 set -e
 export PATH=/tools/Xilinx/2025.1/Vivado/bin:$PATH
 export XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic
-cd ~/fpga/work/T016-xsim
+cd ~/fpga/workspace/T016-xsim
 rm -rf src && mkdir -p src
-for f in ../../rtl_out/core_mini_axi/CoreMiniAxi.sv ../../synth/rtl/top_coralnpu.sv ../../synth/rtl/uart_rx.sv ../../synth/rtl/uart_tx.sv ../../synth/rtl/host_cmd_fsm.sv ../../synth/rtl/axi_master_stub.sv ../../synth/sim/T016-tb_debug_test.sv; do
+for f in ../../rtl_out/core_mini_axi/CoreMiniAxi.sv ../../synth/rtl/top_coralnpu.sv ../../synth/rtl/uart_rx.sv ../../synth/rtl/uart_tx.sv ../../synth/rtl/host_cmd_fsm.sv ../../synth/rtl/axi_master_stub.sv ../../synth/tb/T016-tb_debug_test.sv; do
   base=$(basename "$f")
   { echo '`timescale 1ns/1ps'; cat "$f"; } > "src/$base"
 done

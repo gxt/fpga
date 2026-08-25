@@ -22,12 +22,11 @@
 *.lxt
 *.dump
 iverilog.out
-sim/out/
 build/
 
 # 工作目录（engineer 中间产物）
 .work/
 
 # 202（Vivado 机）侧工作产物（不走 git，经 sync.sh rsync）
-work/
+workspace/
 rtl_out/

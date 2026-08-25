@@ -28,17 +28,17 @@ bash ~/fpga/scripts/t016_xsim.sh          # T016 阶段A：Debug 写 TCM
 bash ~/fpga/scripts/t016_xsim_cont.sh     # T016 复现：40MHz 连续写 TCM
 ```
 - **预期**：阶段A `=== T016-A: ALL CHECKS PASSED ===` exit 0；cont `DTCM/ITCM 16/16`
-- **环境**：Vivado 2025.1 + license；`~/fpga/work/T016-xsim/` 工作目录
+- **环境**：Vivado 2025.1 + license；`~/fpga/workspace/T016-xsim/` 工作目录
 - **执行地**：202
 
 ## 4. 综合 + 实现 + bitstream
 
 ```bash
 scripts/run202.sh <task> 'XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic \
-  /tools/Xilinx/2025.1/Vivado/bin/vivado -mode batch -source scripts/build_top.tcl \
-  -tclargs work/<task> rtl_out/core_mini_axi synth/rtl synth/xdc proj'
+  /tools/Xilinx/2025.1/Vivado/bin/vivado -mode batch -source synth/tcl/build_top.tcl \
+  -tclargs workspace/<task> rtl_out/core_mini_axi synth/rtl synth/xdc proj'
 ```
-- **预期**：`work/<task>/top_coralnpu.bit` + `<task>.xpr` + `utilization_route/timing_route.rpt`；build.log 0 ERROR；WNS>0/hold 0（参考 T010-clean：WNS+0.950）
+- **预期**：`workspace/<task>/top_coralnpu.bit` + `<task>.xpr` + `utilization_route/timing_route.rpt`；build.log 0 ERROR；WNS>0/hold 0（参考 T010-clean：WNS+0.950）
 - **环境**：Vivado 2025.1 + license；预计 **25-35min**；查询 `scripts/run202_check.sh <task>`
 - **执行地**：202（201 用 `scripts/run202.sh` 安排 nohup 后台，不等待）
 
@@ -46,7 +46,7 @@ scripts/run202.sh <task> 'XILINXD_LICENSE_FILE=/tools/Xilinx_lic/vivado_all.lic 
 
 ```bash
 /tools/Xilinx/2025.1/Vivado/bin/vivado -mode batch -nolog -nojournal \
-  -source scripts/program_top.tcl -tclargs <bit路径> program
+  -source synth/tcl/program_top.tcl -tclargs <bit路径> program
 ```
 - **预期**：`==> T012 program DONE`，End of startup status HIGH
 - **环境**：板卡连接（Digilent J24）、电源；**执行前提醒用户**

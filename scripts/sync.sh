@@ -9,7 +9,7 @@
 #                                     name: core_mini_axi | rvv_core_mini_axi
 #   ./sync.sh push synth              推送 synth/ 脚本目录本身到机器202
 #   ./sync.sh push all                等价: push src + push rtl core_mini_axi
-#   ./sync.sh pull [<subdir>]         从机器202 work/ 拉回结果到机器201 synth/out/
+#   ./sync.sh pull [<subdir>]         从机器202 workspace/ 拉回结果到机器201 synth/out/（只拉保留项）
 #   ./sync.sh exec "<机器202命令>"        在机器202执行命令（BatchMode 免密）
 #
 # 机器202信息从 ../.tao/knowledge/registry.md 自动解析（主机地址只登记在 registry），
@@ -101,16 +101,21 @@ cmd_push_all() {
 
 cmd_pull() {
   local sub="${1:-}"
-  local remote_path="$REMOTE_ROOT/work"
+  local remote_path="$REMOTE_ROOT/workspace"
   local out="$ROOT/synth/out"
   if [[ -n "$sub" ]]; then
     remote_path="$remote_path/$sub"
     out="$out/$sub"
   fi
   mkdir -p "$out"
-  say "拉回 $SERVER:$remote_path/ -> $out/"
+  say "拉回 $SERVER:$remote_path/ -> $out/（只拉保留项：bit/bin/dcp/rpt/build.log/.xpr）"
   rsync -a --stats \
     -e "ssh -o BatchMode=yes" \
+    --include='build.log' --exclude='*.log' \
+    --exclude='*.jou' --exclude='*.backup.*' \
+    --exclude='.cache/' --exclude='.hw/' --exclude='.ip_user_files/' --exclude='.Xil/' \
+    --exclude='xsim.dir/' --exclude='*.pb' \
+    --exclude='clockInfo.txt' --exclude='tight_setup_hold_pins.txt' \
     "$SERVER:$remote_path/" \
     "$out/"
 }

@@ -1,7 +1,8 @@
-# sim/：自定义测试程序（T007）
+# tests/：自定义测试程序（T007）+ 上板脚本
 
 本目录存放 T007 任务（Phase2：编写自定义测试程序并运行验证）的产出：
-在 coralnpu Verilator C++ sim 上运行的自定义 RISC-V 测试程序源码、构建脚本、运行脚本与结果记录。
+在 coralnpu Verilator C++ sim 上运行的自定义 RISC-V 测试程序源码、构建脚本、运行脚本与结果记录；
+以及 T015/T016 上板调试 UART 脚本（通用工具去前缀，诊断/实验脚本保留 T015-*/T016-* 前缀）。
 
 ## 文件清单
 
@@ -26,11 +27,11 @@
 ## 可复现命令
 
 ```bash
-# 1. 构建两个测试 ELF（产物在 sim/build/）
-./sim/build_t007.sh
+# 1. 构建两个测试 ELF（产物在 tests/build/）
+./tests/build_t007.sh
 
 # 2. 运行（日志留存 .tao/logs/T007-run-scalar.log 与 T007-run-rvv.log）
-./sim/run_t007.sh
+./tests/run_t007.sh
 ```
 
 或手动运行（注意用 bazel-out 完整路径，见 toolchain-notes.md）：
@@ -38,11 +39,11 @@
 ```bash
 # 标量（scalar-only 配置）
 ./coralnpu/bazel-out/k8-fastbuild/bin/tests/verilator_sim/core_mini_axi_sim \
-  --binary ./sim/build/t007_scalar_fp_test.elf --instr_trace --debug_axi
+  --binary ./tests/build/t007_scalar_fp_test.elf --instr_trace --debug_axi
 
 # RVV（enableRvv=True 配置）
 ./coralnpu/bazel-out/k8-fastbuild/bin/tests/verilator_sim/rvv_core_mini_axi_sim \
-  --binary ./sim/build/t007_rvv_add_test.elf --instr_trace --debug_axi
+  --binary ./tests/build/t007_rvv_add_test.elf --instr_trace --debug_axi
 ```
 
 ## 判定机制
