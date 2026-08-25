@@ -30,13 +30,16 @@ M2 的 E0 环境基础，一切后续任务的前提。
 2. 失败则记录完整错误 + 提出方案，等用户决策
 
 ## 完成区
-**状态**：待执行
+**状态**：✅ 完成（2026-08-25）
 **Commit**：
-**测试结果**：
+**测试结果**：`bazel build //examples:coralnpu_v2_hello_world_add_floats` 成功，EXIT=0，272s；产物 .elf/.bin/.vmem 正常
 **修改文件**：
 **验收结果**：
-**新发现/坑**：
-**遗留问题**：
+- clang-18 主机构建通过（覆盖上游 2290a286c 后，"clang-18 modules 不兼容"问题不存在）
+- 工具链 toolchain_coralnpu_v2 可用
+- 环境就绪 → 进入 T018（E1 生成新核 SV）
+**新发现/坑**：clang-14 依赖彻底消失（wrapper 已恢复上游 exec clang）
+**遗留问题**：无
 
 ## 审阅记录
 （engineer 自审 + reviewer 验收）
