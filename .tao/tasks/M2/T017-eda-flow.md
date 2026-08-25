@@ -1,36 +1,36 @@
-# T017: EDA 流程梳理
+# T017: 环境验证（Ubuntu 升级后 bazel/clang 兼容性）
 
 ## 目标
-在 M1 基础上，把 fpga/EDA 硬件相关的流程梳理清楚，形成**对新生友好的阶段化流程规范**，并验证覆盖后的环境可用性。
+验证 Ubuntu 大版本升级（22.04→24.04）+ coralnpu 覆盖上游 2290a286c 后的构建环境可用性。
+M2 的 E0 环境基础，一切后续任务的前提。
 
 ## 执行环境
-**201**（仓库/git/上板）+ **202**（Vivado 宿主）。bazel/vivado 命令由用户 terminal 执行，agent 只准备命令与分析日志。
+**201**（bazel 宿主）。命令由用户 terminal 执行，脚本由 agent 生成到 `workspace/T017-first/working.sh`。
 
 ## 输入
-1. M1 审核矩阵 `.tao/knowledge/m1-audit.md`（T001-T016 × 保留/适配/重做）
-2. 当前目录结构（tests/ synth/ scripts/ + 202 workspace/）
-3. AGENTS.md（已含核心规范草案）
+1. coralnpu submodule = 上游 2290a286c（wrapper 已恢复 `exec clang`）
+2. .bazelrc：`CC="clang"`（系统默认 clang-18，Ubuntu 24.04）
 
 ## 输出
-1. **EDA 流程文档**（E0-E8 阶段）：每阶段目的/工具/命令/产物/目录规范
-2. **目录结构规范**：tests/、synth/{rtl,xdc,tb,tcl,out}、scripts/ 职责定义
-3. **Vivado 运行规范**：`workspace/<task>-<subtask>/`（首次 first）、保留/清理清单、sync.sh pull 过滤
-4. **环境验证结果**：bazel 兼容上游 2290a286c、**clang-18 主机构建实测**、工具链可用、SV 生成正常
+1. `workspace/T017-first/working.log`：bazel build 完整日志
+2. **环境验证结论**：clang-18 主机构建是否可用；工具链是否下载成功
+
+## 验证项
+1. `bazel build //examples:coralnpu_v2_hello_world_add_floats`（clang-18 实测）
+2. 上游 2290a286c 的 WORKSPACE 依赖下载是否正常（toolchain_coralnpu_v2 版本）
+3. 工具链可用性（riscv64-unknown-elf-gcc）
 
 ## 约束
-1. bazel/vivado 命令由用户在 terminal 执行；agent 准备命令文本 + 分析日志
-2. 每步改动可见：先给流程/命令 → 用户执行 → 读 log → 下一步
-3. 不改 coralnpu 上游源码（保持 2290a286c 纯净）；环境问题用环境层解决（如 .bazelrc 而非 fork 仓库）
-4. 命令缺失必须告知用户，不自行换命令
+1. 不改 coralnpu 上游源码（保持纯净）
+2. 若 clang-18 失败：记录真实错误 → 评估方案（.bazelrc 环境指定 clang-14 / 试 clang-17 / 上游推荐）→ 用户决策
+3. 命令脚本由 agent 生成 working.sh，用户执行 bash working.sh
 
 ## 验收标准
-1. EDA 流程文档覆盖 E0-E8 全阶段，每阶段含命令示例与产物说明
-2. 目录规范文档化并落地（引用已同步）
-3. 环境验证通过：`bazel build //examples:coralnpu_v2_hello_world_add_floats`（clang-18）成功；SV 生成目标确认
-4. 若 clang-18 失败：记录真实错误 → 提出并评估解决方案（.bazelrc 指定 clang-14 / 试 clang-17 / 上游推荐）→ 用户决策后实施
+1. `bazel build` 成功（`Build completed successfully` + hello ELF 产物）
+2. 失败则记录完整错误 + 提出方案，等用户决策
 
 ## 完成区
-**状态**：进行中
+**状态**：待执行
 **Commit**：
 **测试结果**：
 **修改文件**：

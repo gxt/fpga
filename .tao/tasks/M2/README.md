@@ -12,6 +12,16 @@
 - 新增核心规范：**bazel/vivado 命令由用户在 terminal 执行**，log 落任务目录，用户通知后 agent 读 log 分析
 - M1 审核矩阵见 `.tao/knowledge/m1-audit.md`（T001-T016 × 保留/适配/重做）
 
-**任务划分**：延续全局递增 T###。首个任务 = **T017 EDA 流程梳理**（E0-E8 阶段 + 目录/运行规范 + Vivado 保留/清理），后续按需求逐个安排（含环境验证、RVV 上板、完整 SoC 等）。
+**任务划分**（延续全局递增 T###，按依赖顺序）：
+
+| 任务 | 内容 | 阶段 |
+| --- | --- | --- |
+| T017 | 环境验证：Ubuntu 升级后 bazel/clang-18 兼容性 + 工具链 | E0 |
+| T018 | 新核 top 适配 + 50MHz 完整 EDA 流程（学习全流程，LED 引脚预留） | E1-E8 |
+| T019 | UART 加载 elf 时间评测 + 真实执行时间 | E8 |
+| T020 | LED 三灯：找引脚/定含义/驱动方式（UART 直驱 vs 程序）/验证 | E3-E8 |
+| T021 | 时钟树分析 + 降频实验（50M→20M→10M） | E3-E5 |
+
+工作方式：bazel/vivado 命令由用户执行，agent 生成 `workspace/<task>-<subtask>/working.sh`（log 统一 `working.log`），用户执行后 agent 读 log 分析。
 
 **里程碑定义**：M1 = 从零到上板闭环（T001-T014 验收通过）。

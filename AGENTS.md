@@ -9,11 +9,12 @@
 ### 1. bazel / vivado 命令由用户单独执行
 
 - **所有 bazel（构建、生成 SV）与 vivado（综合、仿真、烧录）相关命令，由用户在 terminal 单独执行**
-- 命令的 log 一律重定向到对应任务目录（`workspace/<task>-<subtask>/`）下
-- 执行完成后**用户通知我**，我才读取 log 分析
+- **脚本文件规范**：我在执行地机器的 `workspace/<task>-<subtask>/` 目录下生成脚本文件 **`working.sh`**，log 统一为 **`working.log`**（重定向在脚本内完成）
+- 用户执行：`bash ~/fpga/workspace/<task>-<subtask>/working.sh`（201 与 202 各自在对应机器的 `~/fpga/workspace/<task>-<subtask>/` 下运行）
+- 执行完成后**用户通知我**，我读取 `working.log` 做分析
 - 我的职责：
-  1. 准备命令文本 + 预期产出说明（清晰、单条可读，不用长链）
-  2. 用户执行后，读取 log 做分析/诊断
+  1. 生成 `working.sh`（含要执行的命令 + log 重定向 + 预期产出注释，清晰、单条可读）
+  2. 用户执行后，读取 `working.log` 分析/诊断
   3. 给出下一步建议
 - **禁止**自行 ssh 到 202 直接执行 bazel/vivado 命令
 
