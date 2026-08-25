@@ -44,9 +44,9 @@
 
 ## 3. 远程任务规范
 
-- **启动**：`scripts/run202.sh <task> <cmd...>` —— ssh 到 202 用 `nohup` 后台启动（防网络中断），任务日志落 `~/fpga/work/<task>/build.log`
+- **启动**：`scripts/run202.sh <task> <cmd...>` —— ssh 到 202 用 `nohup` 后台启动（防网络中断），任务日志落 `~/fpga/workspace/<task>/build.log`
 - **等待**：`scripts/run202_wait.sh <task> [pid_pattern]` —— 单条 ssh 远端 `while pgrep ...; do sleep 15; done`，返回即完成
-- **目录**：201 `synth/out/<日期>-<任务>-<描述>/`（bit/报告）；202 `~/fpga/work/<task>/`（工程/日志）
+- **目录**：201 `synth/out/<日期>-<任务>-<描述>/`（bit/报告）；202 `~/fpga/workspace/<task>/`（工程/日志）
 - **网络纪律**：所有远程启动必须 nohup + 日志重定向；禁止本地 sleep+多次查询循环
 
 ## 4. 目录命名规范（统一）
@@ -56,7 +56,7 @@
 | 位置 | 规范 | 示例 |
 | --- | --- | --- |
 | 201 产物 | `synth/out/<任务>-<描述>/` | `synth/out/T010-sync/` |
-| 202 工作 | `~/fpga/work/<任务>-<描述>/` | `~/fpga/work/T010-sync/` |
+| 202 工作 | `~/fpga/workspace/<任务>-<描述>/` | `~/fpga/workspace/T010-sync/` |
 
 - 任务编号统一（`T###` 或简称），描述简短小写连字符（`fix-clk`/`hosttcm`/`baudfix`/`sync`）
 - 禁止：下划线分隔描述、前缀游离（如 `synth_t008_check`）、无描述裸名（如 `T010`）
@@ -72,14 +72,14 @@
 - **任何时候不用 `~/`（家目录）作临时目录**——临时脚本/日志/pid 文件等不得直接放家目录根（202 家目录曾堆 `t016_xsim*.sh`/`t016_review*.log`/`pid`/`xvlog.pb` 等临时文件，已清理）
 - **临时目录优先用**：
   - 本机/202 的 `/tmp/$USER/`（如 `/tmp/gxt/`）
-  - 或**仓库根目录下的合适目录**（如 202 的 `~/fpga/work/<task>/`、201 的仓库内明确子目录）
+  - 或**仓库根目录下的合适目录**（如 202 的 `~/fpga/workspace/<task>/`、201 的仓库内明确子目录）
 - **不清楚放哪时，咨询用户，不要随意找个目录**
 - 机器202 上的仿真/验证脚本纳入仓库 `scripts/`（如 `t016_xsim.sh`/`t016_xsim_cont.sh`），202 从 `~/fpga/scripts/` 调用，禁止放家目录根
 
 ## 5. bit 产物规范
 
 - 每次生成 bit 用**专门子目录**：`synth/out/<日期>-<任务>-<描述>/`（如 `synth/out/20260821-T010-sync/`）
-- **必须建 Vivado xpr 工程文件**：综合用 `build_top.tcl` 工程模式（`create_project`，参数 `proj`），产出 `.xpr`；非工程 batch 模式保留（参数 `batch`）用于快速迭代
+- **必须建 Vivado xpr 工程文件**：综合用 `synth/tcl/build_top.tcl` 工程模式（`create_project`，参数 `proj`），产出 `.xpr`；非工程 batch 模式保留（参数 `batch`）用于快速迭代
 - 产物：`top_coralnpu.bit`/`.bin`、`post_route.dcp`、各 `*.rpt`（utilization/timing/route_status/drc）
 - 烧录用指定 bit 文件（先 `ls -la synth/out/*/top_coralnpu.bit` 确认最新版本再烧）
 
@@ -94,7 +94,7 @@
 ## 7. 上板调试标准流程
 
 1. 提醒 → 烧录 bit（确认版本）→ 提醒 → 用户复位
-2. `sg dialout` 跑测试脚本（`sim/` 下按需选择）
+2. `sg dialout` 跑测试脚本（`tests/` 下按需选择）
 3. 结果验证 + 记录到 `board-debug-log.md`
 4. 问题沉淀：证据链（先确认环境/时序，再改 RTL）+ 每次改动记录
 
@@ -102,16 +102,16 @@
 
 - **运行测试脚本必须实时、完整显示输出**，能看到"运行到哪一步、正在做什么"
 - **禁止用 `| tail`、`| head` 等截断管道**接调试脚本输出——截断后看不到中间进度，只能干等
-- 调试脚本（`sim/*.py`）本身应打印每步进度（如 `T015-itcm_direct_test` 每字一行、`T015-load_elf` 加载计数、`T015-csr_probe` 每步读值），运行时不加任何输出过滤
+- 调试脚本（`tests/*.py`）本身应打印每步进度（如 `T015-itcm_direct_test` 每字一行、`T015-load_elf` 加载计数、`T015-csr_probe` 每步读值），运行时不加任何输出过滤
 - 例外：仅当输出**确实过大**且需要看尾部时，可先完整落盘再分块查看（如 `> log 2>&1` 后 `run202_check`/分段读文件），**不适用于交互式上板测试**
 
 ## 8. 工具清单
 
 - `scripts/run202.sh`：201→202 远程 nohup 任务启动
 - `scripts/run202_wait.sh`：阻塞等待任务完成
-- `scripts/build_top.tcl`：综合+实现+bit（batch/proj 双模式）
+- `synth/tcl/build_top.tcl`：综合+实现+bit（batch/proj 双模式）
 - `scripts/program_top.tcl`：烧录
-- `sim/*.py`：上板测试脚本（T015-itcm_direct_test/T015-uart_raw_probe/T015-load_elf/T015-t007_result_check 等）
+- `tests/*.py`：上板测试脚本（T015-itcm_direct_test/T015-uart_raw_probe/T015-load_elf/T015-t007_result_check 等）
 
 ### 板卡信息源约定（2026-08-22）
 

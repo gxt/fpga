@@ -2,7 +2,7 @@
 # =============================================================================
 # t016_xsim.sh —— T016 阶段 A 仿真（Debug 写 TCM，机器202 执行）
 # 用法: bash ~/fpga/scripts/t016_xsim.sh   （在 202 上，cwd 由脚本 cd 控制）
-# 编译 synth/rtl + rtl_out/core_mini_axi + synth/sim/T016-tb_debug_test.sv → xsim
+# 编译 synth/rtl + rtl_out/core_mini_axi + synth/tb/T016-tb_debug_test.sv → xsim
 # =============================================================================
 set -e
 export PATH=/tools/Xilinx/2025.1/Vivado/bin:$PATH
