@@ -44,13 +44,15 @@ coralnpu 已覆盖为上游 2290a286c（核 RTL 变化：RV64 参数化等），
 4. LED 引脚调研完成（docs/DualV7 位置确认 + top 预留输出）
 
 ## 完成区
-**状态**：待开始
+**状态**：进行中（E1 完成）
 **Commit**：
 **测试结果**：
+- E1 ✅ 新核 CoreMiniAxi.sv 生成（1.86MB，上游 2290a286c，`core_mini_axi_cc_library_emit_verilog` 目标名不变）
+- **top 端口确认**：新核顶层端口 165 个，与 top_coralnpu.sv 例化**完全匹配**（无缺失/无新增）——top 无需适配
 **修改文件**：
 **验收结果**：
-**新发现/坑**：
-**遗留问题**：
+**新发现/坑**：上游 2290a286c 的 CoreMiniAxi 顶层 AXI/debug/dm 端口与 M1 基线一致（8/14 后改动主要在内部逻辑/RV64 参数化）
+**遗留问题**：待 E2 仿真验证新核功能 → E3-E6 综合 → E7-E8 上板
 
 ## 审阅记录
 （engineer 自审 + reviewer 验收）
