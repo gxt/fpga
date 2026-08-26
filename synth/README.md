@@ -34,7 +34,7 @@ RTL 产物源路径：`coralnpu/bazel-out/k8-fastbuild/bin/hdl/chisel/src/coraln
 
 ```
 coralnpu/          # 推送的源码（sync.sh push src）
-rtl_out/<key>/     # 推送的 RTL 产物（sync.sh push rtl <key>）
+workspace/rtl_out/<key>/   # 推送的 RTL 产物（sync.sh push rtl <key>）
 synth/             # 本目录镜像（sync.sh push synth）
 workspace/         # 综合工作目录：workspace/<task>-<subtask>/（首次 subtask=first）
 ```
@@ -51,7 +51,7 @@ workspace/         # 综合工作目录：workspace/<task>-<subtask>/（首次 s
   vivado -mode batch -source ~/fpga/synth/tcl/build_top.tcl \
     -tclargs <work_dir> <rtl_dir> <top_rtl_dir> <xdc_dir>
   ```
-  - `<rtl_dir>` = `~/fpga/rtl_out/core_mini_axi`（CoreMiniAxi.sv）
+  - `<rtl_dir>` = `~/fpga/workspace/rtl_out/core_mini_axi`（CoreMiniAxi.sv）
   - `<top_rtl_dir>` = `~/fpga/synth/rtl`；`<xdc_dir>` = `~/fpga/synth/xdc`
 - 产物：`top_coralnpu.bit` / `.bin` + 各阶段 rpt/dcp（保留）；vivado.log/.jou/.cache/.Xil 等可清理
 - 仿真验证：`tb/T010-tb_top.sv`（xsim，USE_MMCM=0 直连时钟）—— 用法见文件头注释

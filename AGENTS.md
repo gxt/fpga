@@ -74,4 +74,18 @@ fpga/
 └── .tao/       # 知识库 + 任务（M1 归档、M2）
 ```
 
+**202 侧 `~/fpga/`**：`coralnpu/`（源码）、`synth/`（镜像）、`workspace/`（全部工作产物）：
+```
+workspace/
+├── rtl_out/<key>/     # 共享 RTL 输入库（sync.sh push rtl，只读）
+└── <task>-<subtask>/  # 任务工作目录（Vivado 工程/日志/bit，首次 first）
+```
+
+## 五、201 ↔ 202 同步时机
+
+1. **git 仓库**：master 仅 201 提交。**201 每次提交后主动同步 202**（`git pull`），202 开始任务前确认已最新
+2. **RTL 产物**：核 SV 有更新时 `sync.sh push rtl <key>`（覆盖同名文件）
+3. **synth 目录**：rtl/xdc/tb/tcl 有更新时 `sync.sh push synth`
+4. **workspace working.sh**：agent 生成的脚本/任务目录需 rsync/scp 到执行地机器（workspace 是本地目录，不走 git）
+
 （目录重组过程中此结构会随改动更新）

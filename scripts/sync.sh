@@ -5,7 +5,7 @@
 # 用法:
 #   ./sync.sh info                    显示解析出的机器202信息
 #   ./sync.sh push src                推送 coralnpu 源码到机器202（rsync 增量）
-#   ./sync.sh push rtl <name>...      推送 bazel RTL 产物到机器202 rtl_out/
+#   ./sync.sh push rtl <name>...      推送 bazel RTL 产物到机器202 workspace/rtl_out/
 #                                     name: core_mini_axi | rvv_core_mini_axi
 #   ./sync.sh push synth              推送 synth/ 脚本目录本身到机器202
 #   ./sync.sh push all                等价: push src + push rtl core_mini_axi
@@ -29,7 +29,7 @@ REMOTE_ROOT="${SYNTH_REMOTE_ROOT:-~/fpga}"
 VIVADO="${SYNTH_VIVADO:-$(grep -o '/tools/Xilinx/[0-9.]*/Vivado/bin/vivado' "$REGISTRY" | head -1)}"
 [[ -n "$VIVADO" ]] || VIVADO="/tools/Xilinx/2025.1/Vivado/bin/vivado"
 
-# RTL 产物映射表（源 = 机器201 bazel-out 固定路径；目标 = 机器202 rtl_out/<key>/）
+# RTL 产物映射表（源 = 机器201 bazel-out 固定路径；目标 = 机器202 workspace/rtl_out/<key>/）
 # key 对应 //hdl/chisel/src/coralnpu:<key>_emit_verilog 的产物（见 coralnpu-build-map.md）
 RTL_OUT_SRC="$ROOT/coralnpu/bazel-out/k8-fastbuild/bin/hdl/chisel/src/coralnpu"
 declare -A RTL_FILES=(
@@ -77,11 +77,11 @@ cmd_push_rtl() {
       [[ -f "$RTL_OUT_SRC/$f" ]] \
         || die "机器201产物缺失: $RTL_OUT_SRC/$f（先执行 bazel build //hdl/chisel/src/coralnpu:${name}_emit_verilog）"
     done
-    say "推送 RTL 产物 [$name] -> $SERVER:$REMOTE_ROOT/rtl_out/$name/"
-    ssh_run "mkdir -p $REMOTE_ROOT/rtl_out/$name"
+    say "推送 RTL 产物 [$name] -> $SERVER:$REMOTE_ROOT/workspace/rtl_out/$name/"
+    ssh_run "mkdir -p $REMOTE_ROOT/workspace/rtl_out/$name"
     rsync -a -e "ssh -o BatchMode=yes" \
       "${src_files[@]/#/$RTL_OUT_SRC/}" \
-      "$SERVER:$REMOTE_ROOT/rtl_out/$name/"
+      "$SERVER:$REMOTE_ROOT/workspace/rtl_out/$name/"
   done
 }
 
