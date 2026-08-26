@@ -14,8 +14,15 @@
 
 | 任务 | 内容 | 状态 |
 | --- | --- | --- |
-| T022 | 标量 SoC 基座：CoreTlul(enableRvv=false) + Xbar + clint/plic/gpio/sram(256K) + host 桥（Axi2TLUL）；xsim 验证 r/w → 综合 → 上板测试向量 | 进行中 |
-| T023 | RVV SoC 全量：enableRvv=true + TCM（段统计定，64K/128K 候选）→ 上板全量 RVV 用例 | 待开始 |
+| T022 | 标量 SoC 基座：CoreTlul(enableRvv=false) + Xbar + clint/plic/gpio/sram(256K) + host 桥（Axi2TLUL）；xsim 验证 r/w → 综合 → 上板测试向量 | ✅ |
+| T023 | RVV SoC：enableRvv=true（默认 TCM 8K/32K）→ 综合 20M → 上板 t007_rvv HALTED | ✅ |
+
+**M3 里程碑完成（2026-08-26）**：
+- ✅ 较完整 SoC（CoreTlul + CoralNPUXbar + 最小外设 + SRAM 256K + UART 加载桥）在 DualV7 上板跑通
+- ✅ **RVV 核上板验证通过**（t007_rvv 自校验 HALTED——T017 目标实现）
+- ✅ 20M 时序收敛（标量 WNS+15.410 / RVV WNS+0.754）；RVV route 拥塞未复现（LUT 38%）
+- ✅ UART 加载保留（host_cmd_fsm→Axi2TLUL→Xbar→核 tl_device，与 chip_nexus 架构一致）
+- ✅ RVV 宏与 chip_nexus.core 对齐（VLEN_128/ZVE32F_ON/TB_SUPPORT）
 
 ## 待定项
 - TCM 配置：T023 前统计 RVV 用例 ELF 段大小定 ITCM/DTCM
