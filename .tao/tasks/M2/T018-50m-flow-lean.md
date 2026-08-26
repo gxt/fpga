@@ -44,15 +44,29 @@ coralnpu 已覆盖为上游 2290a286c（核 RTL 变化：RV64 参数化等），
 4. LED 引脚调研完成（docs/DualV7 位置确认 + top 预留输出）
 
 ## 完成区
-**状态**：进行中（E1✅ E2✅）
+**状态**：✅ 完成（2026-08-26）
 **Commit**：
 **测试结果**：
-- E1 ✅ 新核 CoreMiniAxi.sv 生成（1.86MB，2290a286c）；top 端口与上游完全匹配无需适配
-- E2 ✅ xsim（T010-tb_top）**ALL CHECKS PASSED**：UART host 加载 4 指令 → 新核 HALTED（0x30008=1）→ DTCM[0x10000]=42 → led_halted=1/fault=0
+- E1 ✅ 新核 CoreMiniAxi.sv 生成（1.86MB，2290a286c）；top 端口 165 个与例化完全匹配，无需适配
+- E2 ✅ xsim（T010-tb_top）ALL CHECKS PASSED（加载/执行/halt/DTCM=42）
+- E3-E6 ✅ 50MHz 全流程成功（synth 13m31s / place 5m25s / route 11m18s / bit 1m43s ≈ 32min）
+  - signoff：**WNS -0.175ns（10 端点，TNS -0.807）/ WHS +0.078**——50M 轻微 setup 违例（核内 dm→retirement_buffer 路径，布线延迟 81%）
+- E7 ✅ 烧录成功（End of startup status: HIGH）
+- E8 ✅ 上板 t007_scalar_fp_test.elf **ALL PASS**（HALTED + out_mul {700,1600,2700,4000} + fout {2.0,3.0,5.0,7.0} bit-exact）
+  - bit md5 9814dbad（50MHz）
 **修改文件**：
+- `synth/rtl/top_coralnpu.sv`：MMCM 40→50MHz（DIVIDE_F 30→24 + CORE_CLK_HZ 50M）
+- `tests/load_elf_uart.py`：Q 轮询 → R 命令轮询 STATUS（Q 上板不可靠）
 **验收结果**：
-**新发现/坑**：上游 2290a286c 核端口/功能与 M1 兼容；MMCM 当前 40MHz（100×12/1/30），50MHz 需 DIVIDE_F 30→24（M1 注释 50MHz 曾有 -0.15ns 违例，本任务实测新核）
-**遗留问题**：待 E3 综合（50MHz）→ E6 bit → E7-E8 上板
+- 50MHz 新核（2290a286c）上板功能验证通过；-0.175ns 违例上板实测稳定 → **接受 50M**（决策 A）
+- 新核功能与 M1 一致（t007 结果 bit-exact）
+**新发现/坑**：
+1. **Q 命令上板不可靠**：核 HALTED 但 load_elf 的 Q 轮询报"未进入 HALTED"（E2 仿真正常、上板异常——UART 帧拆分致响应解析失败）；改用 R 命令读 STATUS 解决
+2. 50M 违例路径：核内 dm/req_q → retirement_buffer/retiredEcalls，布线延迟 81%（与 M1 的 50M 记录同型）
+3. E2 诊断早期疑点（PC=0/STATUS=1）均为误读：0x30004 是 pcStartReg 非运行 PC；STATUS=1 是"跑完 halted"或"初始 halted"，需回读 DTCM/结果数组判定执行程度
+**遗留问题**：
+- 50M 违例未进一步收敛（接受，记录）
+- Q 命令根因未深挖（host_cmd_fsm Q 路径 vs load_elf 解析，可后续排查）
 
 ## 审阅记录
 （engineer 自审 + reviewer 验收）

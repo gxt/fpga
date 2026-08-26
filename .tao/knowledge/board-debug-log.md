@@ -159,3 +159,15 @@
 - 结果：Debug 写 ITCM[0x0]=DEADBEEF、ITCM[0x4]=CAFEBABE → R 读回一致 → **ALL PASS**
 - **假设确认**：阶段 B"Debug 写未生效" = uart_rx 亚稳态（Debug 命令为长命令序列，当时与 host 写 ITCM 卡同因）；UART 修复后 Debug 通路（CoreAxiCSR Dbg 寄存器 0x30800/04/08/14）完全正常
 - Dmstatus/Abstractcs 读回 0 为已知限制（Debug Access Memory 读返回 0），加载/验证用 R 命令读回代替，不受影响
+
+## T018 上板验证（2026-08-26，50MHz 新核 2290a286c）
+
+### 结果
+- bit：`synth/out/T018-e3-synth/top_coralnpu.bit`（50MHz，md5 9814dbad）
+- t007_scalar_fp_test.elf 上板 **ALL PASS**（HALTED + out_mul/fout 结果 bit-exact）
+
+### 坑与发现
+1. **Q 命令上板不可靠**：核已 HALTED（R 命令读 STATUS=1），但 `load_elf_uart.py` 用 Q 轮询报"未进入 HALTED"（E2 仿真 Q 正常、上板异常——UART 帧拆分致响应解析失败）。**修复**：load_elf 轮询改用 R 命令读 0x30008。Q 命令根因未深挖。
+2. **0x30004 是 pcStartReg（启动地址寄存器）非运行 PC**；STATUS=1 无法区分"初始 halted"vs"跑完 halted"——判定核执行需回读结果数组（DTCM 内容）。
+3. 50MHz signoff WNS=-0.175ns（核内 dm→retirement_buffer，布线 81%），**上板实测稳定 → 接受**（决策 A）。
+4. 早期"核未启动"误判：csr_rw_diag 证实 CSR 写读全部正常（PC_START/CTRL），最终 dtcm_diag（回读 DTCM=42）确认核执行正常——**诊断应优先回读数据而非只看 STATUS/PC**。

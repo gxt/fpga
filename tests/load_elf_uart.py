@@ -86,12 +86,16 @@ def main():
     r = send_cmd(s, "S\n")
     print(f"S 启动响应: {r!r}")
 
-    # 3) Q 轮询 HALTED（最多 100 次 / 10s）
+    # 3) 轮询 STATUS（R 命令读 0x30008，最多 100 次 / 10s）
+    #    注：Q 命令在上板不可靠（UART 帧拆分致响应解析失败，2026-08-26 T018 实测），改用 R 命令
     halted = False
     for _ in range(100):
-        r = send_cmd(s, "Q\n")
-        if len(r) >= 9 and r[:8].lower() == f"{CSR_STATUS:08x}".lower():
-            status = int(r[8:16], 16)
+        r = send_cmd(s, f"R{CSR_STATUS:08X}01\n")
+        if len(r) >= 16:
+            try:
+                status = int(r[8:16], 16)
+            except ValueError:
+                status = 0
             if status & 1:
                 halted = True
                 print(f"HALTED 确认: {r!r}")
