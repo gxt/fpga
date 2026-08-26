@@ -10,7 +10,7 @@
 #
 # 参数：
 #   work_dir     输出目录（报告/bitstream/dcp）
-#   rtl_dir      远端 core_mini_axi SV 目录（如 ~/fpga/rtl_out/core_mini_axi/）
+#   rtl_dir      远端 core_mini_axi SV 目录（如 ~/fpga/workspace/rtl_out/core_mini_axi/）
 #   top_rtl_dir  本工程顶层/桥接 SV 目录（如 ~/fpga/synth/rtl/）
 #   xdc_dir      引脚约束目录（如 ~/fpga/synth/xdc/）
 #   mode         可选：proj（建 xpr 工程，默认）| batch（非工程，快速迭代）

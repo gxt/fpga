@@ -44,15 +44,15 @@ coralnpu 已覆盖为上游 2290a286c（核 RTL 变化：RV64 参数化等），
 4. LED 引脚调研完成（docs/DualV7 位置确认 + top 预留输出）
 
 ## 完成区
-**状态**：进行中（E1 完成）
+**状态**：进行中（E1✅ E2✅）
 **Commit**：
 **测试结果**：
-- E1 ✅ 新核 CoreMiniAxi.sv 生成（1.86MB，上游 2290a286c，`core_mini_axi_cc_library_emit_verilog` 目标名不变）
-- **top 端口确认**：新核顶层端口 165 个，与 top_coralnpu.sv 例化**完全匹配**（无缺失/无新增）——top 无需适配
+- E1 ✅ 新核 CoreMiniAxi.sv 生成（1.86MB，2290a286c）；top 端口与上游完全匹配无需适配
+- E2 ✅ xsim（T010-tb_top）**ALL CHECKS PASSED**：UART host 加载 4 指令 → 新核 HALTED（0x30008=1）→ DTCM[0x10000]=42 → led_halted=1/fault=0
 **修改文件**：
 **验收结果**：
-**新发现/坑**：上游 2290a286c 的 CoreMiniAxi 顶层 AXI/debug/dm 端口与 M1 基线一致（8/14 后改动主要在内部逻辑/RV64 参数化）
-**遗留问题**：待 E2 仿真验证新核功能 → E3-E6 综合 → E7-E8 上板
+**新发现/坑**：上游 2290a286c 核端口/功能与 M1 兼容；MMCM 当前 40MHz（100×12/1/30），50MHz 需 DIVIDE_F 30→24（M1 注释 50MHz 曾有 -0.15ns 违例，本任务实测新核）
+**遗留问题**：待 E3 综合（50MHz）→ E6 bit → E7-E8 上板
 
 ## 审阅记录
 （engineer 自审 + reviewer 验收）

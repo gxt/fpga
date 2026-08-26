@@ -19,9 +19,7 @@
 //   MMCM 比例：CLK_IN × MMCM_MULT / MMCM_DIVCLK / MMCM_OUT_DIV = CORE_CLK
 module top_coralnpu #(
     parameter int  CLK_IN_HZ   = 100_000_000,   // s2cclk_1 (L4/L3) 100MHz 输入
-    parameter int  CORE_CLK_HZ = 40_000_000,    // MMCM 输出频率（40MHz：在 xc7v2000t -1
-                                                //   上给时序留出裕量；50MHz 有 -0.15ns 违例，
-                                                //   见 synth-notes T010）
+    parameter int  CORE_CLK_HZ = 50_000_000,    // MMCM 输出频率（T018 目标 50MHz：100×12/1/24）
     parameter int  BAUD        = 115200,        // RS232 波特率
     parameter bit  USE_DIFF_CLK = 1'b1,         // 1=差分 LVDS(IBUFDS) 0=单端(IBUF)
     parameter bit  USE_MMCM     = 1'b1          // 1=MMCM 时钟树；0=clk_p 直连（仿真/调试用，
@@ -68,10 +66,10 @@ module top_coralnpu #(
 
             MMCME2_BASE #(
                 .BANDWIDTH          ("OPTIMIZED"),
-                .CLKFBOUT_MULT_F    (12.0),             // 100MHz×12/1/30 = 40MHz
+                .CLKFBOUT_MULT_F    (12.0),             // 100MHz×12/1/24 = 50MHz
                 .CLKFBOUT_PHASE     (0.0),
                 .CLKIN1_PERIOD      (10.0),             // 对应 100MHz 假定输入
-                .CLKOUT0_DIVIDE_F   (30.0),
+                .CLKOUT0_DIVIDE_F   (24.0),
                 .CLKOUT0_DUTY_CYCLE (0.5),
                 .CLKOUT0_PHASE      (0.0),
                 .CLKOUT1_DIVIDE     (1.0),
