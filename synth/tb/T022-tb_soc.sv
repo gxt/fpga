@@ -1,24 +1,18 @@
 // T022-tb_soc.sv —— 验证 host→Axi2TLUL→Xbar→核 加载通路（xsim，机器202）
 //
-// 目标：验证裁剪 SoC（CoralNPUChiselSubsystem）的 r/w 通路：
-//   1) W 命令加载 4 指令到 ITCM（0x0-0xc）
-//   2) S 命令启动 core
-//   3) R 命令轮询 CSR 0x30008（STATUS）直到 HALTED=1
-//   4) R 命令回读 DTCM 0x10000，验证程序写出的 42
+// 基于 M1 已验证的 T010-tb_top.sv（UART 收发/接收器/recv task 原样复用），只改 DUT 例化：
+//   top_coralnpu_soc（裁剪 SoC：CoreTlul + Xbar + uart_host 桥）
 //
-// 测试程序：addi x5,x0,42 → lui x2,0x10 → sw x5,0(x2) → mpause
+// 验证：W 加载 4 指令到 ITCM → S 启动 → Q 轮询 HALTED → R 回读 DTCM=42 → LED/HELP/ERR
 // 时钟：USE_MMCM=0（clk_p 直连 clk_core，20MHz）；UART 115200
-// 注：UART 接收用队列（复用 M1 T010-tb_top 验证过的模式）
 module tb_soc;
     logic clk_p = 1'b0;
     logic clk_n = 1'b0;
     logic rst_btn_n = 1'b0;
-    logic uart_rx = 1'b1;
-    logic uart_tx = 1'b1;   // 初始 idle 高
+    logic uart_rx = 1'b1;      // DUT 接收（TB 发送）
+    logic uart_tx;             // DUT 发送（TB 接收）
     logic led_halted, led_fault, led_locked;
     logic [2:0] gpio_led;
-    logic [31:0] st;
-    logic [31:0] dtcm;
 
     top_coralnpu_soc #(
         .CORE_CLK_HZ (20_000_000),
@@ -35,19 +29,20 @@ module tb_soc;
 
     localparam int BIT_NS = 8680;  // 20MHz, 115200 baud
 
-    // ==================== 发送 ====================
+    // ---- 发送 ----
     task send_bit(input logic b); uart_rx = b; #(BIT_NS); endtask
     task send_byte(input logic [7:0] byte_in);
-        send_bit(1'b0);
-        for (int i = 0; i < 8; i++) send_bit(byte_in[i]);
-        send_bit(1'b1);
+        send_bit(1'b0);                      // start
+        for (int i = 0; i < 8; i++) send_bit(byte_in[i]);  // LSB first
+        send_bit(1'b1);                      // stop
     endtask
     task send_str(input string s);
-        foreach (s[i]) send_byte(s[i]);
+        for (int i = 0; i < s.len(); i++) send_byte(s[i]);
     endtask
 
-    // ==================== TB 串口接收器（队列，M1 模式） ====================
+    // ---- TB 串口接收器（队列，M1 验证过的模式） ----
     logic [7:0] rx_byte_q [$];
+    int rx_errors = 0;
 
     always begin
         @(negedge uart_tx);
@@ -59,127 +54,155 @@ module tb_soc;
                 sh = {uart_tx, sh[7:1]};
             end
             #(BIT_NS);
-            rx_byte_q.push_back(sh);
+            if (uart_tx !== 1'b1) begin
+                $display("TB: RX framing error");
+                rx_errors++;
+            end else begin
+                rx_byte_q.push_back(sh);
+            end
         end
     end
 
-    // ==================== 从队列取字节（简单轮询，无 fork） ====================
-    task get_byte(output logic [7:0] b, output int found);
-        int cnt = 0;
-        found = 0;
-        while (cnt < 50000) begin
-            @(posedge clk_p);
-            cnt++;
-            if (rx_byte_q.size() > 0) begin
-                b = rx_byte_q.pop_front();
-                found = 1;
-                return;
-            end
-        end
+    // ---- 主测试序列 ----
+    int test_fail = 0;
+    string exp_str;
+    int exp_idx;
+    logic [7:0] rx_last_byte;
+
+    task automatic recv_byte();
+        wait (rx_byte_q.size() > 0);
+        rx_last_byte = rx_byte_q.pop_front();
     endtask
 
-    // ==================== 期待响应串（累积到尾部匹配，容忍前导残留） ====================
-    task expect_rx(input string pat);
+    task automatic recv_expect_str(input string s);
+        for (int i = 0; i < s.len(); i++) begin
+            recv_byte();
+            if (rx_last_byte != s[i]) begin
+                $display("TB: MISMATCH idx=%0d got=0x%02x('%c') exp=0x%02x('%c')",
+                         i, rx_last_byte, rx_last_byte, s[i], s[i]);
+                test_fail = 1;
+            end
+        end
+        $display("TB: recv_expect_str OK: %s", s);
+    endtask
+
+    logic [31:0] hex_data_out;
+    task automatic hex_digit(input logic [7:0] c, output logic [3:0] v);
+        if (c >= "0" && c <= "9") v = c - "0";
+        else if (c >= "A" && c <= "F") v = c - "A" + 10;
+        else v = c - "a" + 10;
+    endtask
+    task automatic recv_hex_line(input string addr_hex);
         string got = "";
-        logic [7:0] b;
-        int found;
-        int guard = 0;
-        while (1) begin
-            get_byte(b, found);
-            if (!found) begin
-                $display("TB: TIMEOUT waiting %s, got=%s", pat, got);
-                $finish;
-            end
-            got = {got, string'(b)};
-            guard++;
-            if (got.len() >= pat.len() && got.substr(got.len()-pat.len(), got.len()-1) == pat) begin
-                $display("TB: recv OK (%s)", pat);
-                return;
-            end
-            if (guard > 100) begin
-                $display("TB: GUARD waiting %s, got=%s", pat, got);
-                $finish;
-            end
+        logic [3:0] nib;
+        for (int i = 0; i < 8; i++) begin
+            recv_byte();
+            got = {got, rx_last_byte};
         end
+        if (got != addr_hex) begin
+            $display("TB: LINE addr mismatch got=%s exp=%s", got, addr_hex);
+            test_fail = 1;
+        end
+        hex_data_out = 32'h0;
+        for (int i = 0; i < 8; i++) begin
+            recv_byte();
+            hex_digit(rx_last_byte, nib);
+            hex_data_out = (hex_data_out << 4) | nib;
+        end
+        recv_byte();                         // '\n'
+        if (rx_last_byte != "\n") begin
+            $display("TB: LINE missing newline got=0x%02x", rx_last_byte);
+            test_fail = 1;
+        end
+        $display("TB: recv_hex_line %s = 0x%08x", addr_hex, hex_data_out);
     endtask
 
-    // ==================== 读一个 32 位字（R 命令，找 addr 尾部匹配再取 data） ====================
-    task read_word(input logic [31:0] addr, output logic [31:0] val);
-        string got = "";
-        logic [7:0] b;
-        int found;
-        int guard = 0;
-        send_str($sformatf("R%08X01\n", addr));
-        while (1) begin
-            get_byte(b, found);
-            if (!found) begin
-                $display("TB: read_word TIMEOUT addr=%08X got=%s", addr, got);
-                $finish;
-            end
-            got = {got, string'(b)};
-            if (got.len() >= 8 && got.substr(got.len()-8, got.len()-1) == $sformatf("%08X", addr)) begin
-                string data = "";
-                for (int i = 0; i < 8; i++) begin
-                    get_byte(b, found);
-                    if (!found) begin
-                        $display("TB: read_word data TIMEOUT addr=%08X", addr);
-                        $finish;
-                    end
-                    data = {data, string'(b)};
-                end
-                val = data.atohex();
-                $display("TB: recv_hex_line %08X = 0x%08X", addr, val);
-                return;
-            end
-            guard++;
-            if (guard > 100) begin
-                $display("TB: read_word GUARD addr=%08X got=%s", addr, got);
-                $finish;
-            end
-        end
-    endtask
-
-    // ==================== 主测试序列 ====================
     initial begin
-        // 复位释放
-        rst_btn_n = 1'b0;
-        #(100);
+        #200;                          // 复位保持
         rst_btn_n = 1'b1;
-        #(200);
+        $display("TB: reset released");
 
-        // 0) UART 通路
-        send_str("?\n");
-        expect_rx("HELP");
+        // ---- 1) 加载程序到 ITCM ----
+        $display("TB: == load program to ITCM ==");
+        send_str("W0000000002a00293\n");
+        recv_expect_str("OK\n");
+        send_str("W0000000400010137\n");
+        recv_expect_str("OK\n");
+        send_str("W0000000800512023\n");
+        recv_expect_str("OK\n");
+        send_str("W0000000c08000073\n");
+        recv_expect_str("OK\n");
+        $display("TB: program loaded");
 
-        // 1) 加载 4 指令到 ITCM
-        send_str("W0000000002A00293\n"); expect_rx("OK");
-        send_str("W0000000400010137\n"); expect_rx("OK");
-        send_str("W0000000800512023\n"); expect_rx("OK");
-        send_str("W0000000C08000073\n"); expect_rx("OK");
-
-        // 2) 启动
-        send_str("S\n"); expect_rx("OK");
+        // ---- 2) 启动 core ----
+        $display("TB: == start core (S) ==");
+        send_str("S\n");
+        recv_expect_str("OK\n");
         $display("TB: core started");
 
-        // 3) 轮询 STATUS（R 读 0x30008）直到 HALTED
-        for (int i = 0; i < 20; i++) begin
-            read_word(32'h00030008, st);
-            if (st & 1) begin
-                $display("TB: HALTED detected (status=0x%08X)", st);
-                break;
+        // ---- 3) 轮询 Q 直到 HALTED ----
+        $display("TB: == poll status until halted ==");
+        begin
+            int halted_seen = 0;
+            for (int i = 0; i < 50; i++) begin
+                send_str("Q\n");
+                recv_hex_line("00030008");
+                recv_expect_str("OK\n");
+                if (hex_data_out[0]) begin
+                    $display("TB: HALTED detected (status=0x%08x) on poll %0d", hex_data_out, i);
+                    halted_seen = 1;
+                    break;
+                end
+            end
+            if (!halted_seen) begin
+                $display("TB: FAIL: core did not halt after 50 polls");
+                test_fail = 1;
             end
         end
 
-        // 4) 回读 DTCM 0x10000（应=42）
-        read_word(32'h00010000, dtcm);
-        if (dtcm == 32'h2A) begin
-            $display("TB: DTCM[0x10000]=42 OK");
-        end else begin
-            $display("TB: DTCM[0x10000]=0x%08X FAIL (expect 42)", dtcm);
-            $finish;
+        // ---- 4) 回读 DTCM ----
+        $display("TB: == readback DTCM 0x10000 ==");
+        begin
+            send_str("R0001000001\n");
+            recv_hex_line("00010000");
+            recv_expect_str("OK\n");
+            if (hex_data_out != 32'h2A) begin
+                $display("TB: FAIL: DTCM[0x10000]=0x%08x exp 0x2A", hex_data_out);
+                test_fail = 1;
+            end else begin
+                $display("TB: DTCM[0x10000]=42 OK");
+            end
         end
 
-        $display("TB: ==== T022: r/w 通路验证完成 ====");
+        // ---- 5) LED 检查 ----
+        if (led_halted !== 1'b1) begin
+            $display("TB: FAIL: led_halted not set");
+            test_fail = 1;
+        end else begin
+            $display("TB: led_halted=1 OK");
+        end
+        if (led_fault !== 1'b0) begin
+            $display("TB: FAIL: led_fault should be 0");
+            test_fail = 1;
+        end else begin
+            $display("TB: led_fault=0 OK");
+        end
+
+        // ---- 6) 帮助命令 ----
+        send_str("?\n");
+        recv_expect_str("HELP\n");
+
+        // ---- 7) 错误路径 ----
+        send_str("X123\n");
+        recv_expect_str("ERR\n");
+
+        $display("TB: ==== TEST DONE ====");
+        if (test_fail == 0 && rx_errors == 0) begin
+            $display("TB: *** ALL CHECKS PASSED ***");
+        end else begin
+            $display("TB: *** TEST FAILED: test_fail=%0d rx_errors=%0d ***",
+                     test_fail, rx_errors);
+        end
         $finish;
     end
 endmodule
