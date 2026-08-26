@@ -337,7 +337,7 @@ module host_cmd_fsm (
                         if (!hex_ok(rx_data)) begin
                             state <= ERR_DRAIN;
                         end else begin
-                            led_ctrl <= hex_val(rx_data)[2:0];   // 低 3 bit = LED0/1/2
+                            led_ctrl <= hex_val(rx_data);   // 低 3 bit = LED0/1/2（4bit→3bit 自动截断）
                             state    <= P_END;
                         end
                     end
