@@ -72,7 +72,12 @@ if {$mode eq "proj"} {
 }
 
 # ---- 综合 ----
-synth_design -top $top -part $part
+# RVV 核依赖 VLEN_128/ZVE32F_ON 宏（T017 经验：`define 不跨文件，须 synth_design 注入）
+if {$top eq "top_coralnpu_soc"} {
+    synth_design -top $top -part $part -verilog_define {VLEN_128 ZVE32F_ON}
+} else {
+    synth_design -top $top -part $part
+}
 
 # ---- 实现（中间阶段报告/checkpoint 默认不产出，需要时从 post_route.dcp 重生成） ----
 opt_design
