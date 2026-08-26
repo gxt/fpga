@@ -36,7 +36,9 @@ module top_coralnpu #(
     // ---- 测试区 LED（输出 H 点亮） ----
     output logic led_halted,    // LED40（K25）
     output logic led_fault,     // LED41（K28）
-    output logic led_locked     // LED42（J28）
+    output logic led_locked,    // LED42（J28）
+    // ---- GPIO LED（小板 J8-101/103/105，T020：L 命令控制） ----
+    output logic [2:0] gpio_led  // LED0=AH44 LED1=AH43 LED2=AL40
 );
     // ==================== 时钟树 ====================
     logic clk_ref;          // 输入时钟（IBUFDS/IBUF 后）
@@ -244,7 +246,8 @@ module top_coralnpu #(
         .s_rdata   (s_rdata),
         .s_rid     (s_rid),
         .s_rresp   (s_rresp),
-        .s_rlast   (s_rlast)
+        .s_rlast   (s_rlast),
+        .led_ctrl  (gpio_led)
     );
 
     // ---- CoreMiniAxi（bazel 生成，不改动） ----

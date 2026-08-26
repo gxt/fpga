@@ -36,3 +36,12 @@ set_property -dict {PACKAGE_PIN AV42 IOSTANDARD LVCMOS18} [get_ports {uart_rx}]
 set_property -dict {PACKAGE_PIN K25 IOSTANDARD LVCMOS15} [get_ports {led_halted}]
 set_property -dict {PACKAGE_PIN K28 IOSTANDARD LVCMOS15} [get_ports {led_fault}]
 set_property -dict {PACKAGE_PIN J28 IOSTANDARD LVCMOS15} [get_ports {led_locked}]
+
+# -----------------------------------------------------------------------------
+# GPIO LED（小板 J8-101/103/105）—— LED0=AH44、LED1=AH43、LED2=AL40，
+# active-high，LVCMOS18（docs/DualV7 03-board-dualv7 §03.9 / Chipyard 管脚表）
+# T020：L 命令控制
+# -----------------------------------------------------------------------------
+set_property -dict {PACKAGE_PIN AH44 IOSTANDARD LVCMOS18} [get_ports {gpio_led[0]}]
+set_property -dict {PACKAGE_PIN AH43 IOSTANDARD LVCMOS18} [get_ports {gpio_led[1]}]
+set_property -dict {PACKAGE_PIN AL40 IOSTANDARD LVCMOS18} [get_ports {gpio_led[2]}]

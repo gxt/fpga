@@ -64,7 +64,9 @@ module host_cmd_fsm (
     input  logic [127:0] s_rdata,
     input  logic [5:0]  s_rid,
     input  logic [1:0]  s_rresp,
-    input  logic        s_rlast
+    input  logic        s_rlast,
+    // ---- GPIO LED 控制（T020：L 命令，低 3 bit = LED0/1/2） ----
+    output logic [2:0]  led_ctrl
 );
     // ---- 常量 ----
     localparam logic [5:0] AXI_ID        = 6'd0;
@@ -90,6 +92,7 @@ module host_cmd_fsm (
         IDLE,
         P_W_ADDR, P_W_DATA,          // W 命令参数收集
         P_R_ADDR, P_R_CNT,           // R 命令参数收集
+        P_LED,                       // L 命令参数收集（1 hex）
         P_END,                       // 等待行结束符
         XW_AW, XW_W, XW_B,           // AXI 写事务
         XR_AR, XR_R,                 // AXI 读事务
@@ -250,6 +253,7 @@ module host_cmd_fsm (
                             "W": begin cmd_kind <= 3'd0; state <= P_W_ADDR; hex_cnt <= '0; end
                             "R": begin cmd_kind <= 3'd1; state <= P_R_ADDR; hex_cnt <= '0; end
                             "S": begin cmd_kind <= 3'd2; state <= P_END; end
+                            "L": begin cmd_kind <= 3'd5; state <= P_LED; hex_cnt <= '0; end
                             "Q": begin
                                 cmd_kind  <= 3'd3;
                                 cmd_addr  <= CSR_STATUS;
@@ -328,6 +332,16 @@ module host_cmd_fsm (
                         end
                     end
                 end
+                P_LED: begin
+                    if (rx_valid) begin
+                        if (!hex_ok(rx_data)) begin
+                            state <= ERR_DRAIN;
+                        end else begin
+                            led_ctrl <= hex_val(rx_data)[2:0];   // 低 3 bit = LED0/1/2
+                            state    <= P_END;
+                        end
+                    end
+                end
 
                 // ---- 行结束 ----
                 P_END: begin
@@ -346,6 +360,7 @@ module host_cmd_fsm (
                                     state       <= XW_AW;
                                 end
                                 3'd3: state <= XR_AR;                      // Q
+                                3'd5: state <= TX_OK;                      // L（无 AXI 事务，直接应答）
                                 default: begin
                                     state  <= TX_HELP;                     // ?
                                     tx_cnt <= '0;
