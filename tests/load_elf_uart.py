@@ -35,13 +35,13 @@ def send_cmd(s, cmd, expect=b"OK", timeout=2.0):
     buf = b""
     t0 = time.time()
     while time.time() - t0 < timeout:
-        chunk = s.read(256)
-        if chunk:
-            buf += chunk
+        n = s.in_waiting
+        if n:
+            buf += s.read(n)
             if expect and expect in buf:
                 return buf
         else:
-            time.sleep(0.02)
+            time.sleep(0.002)
     return buf
 
 def main():
@@ -62,6 +62,7 @@ def main():
     print("UART 通路 OK (?)")
 
     # 1) 加载 ELF LOAD 段（逐 32 位字 W 命令；失败重试 + 写入间隔）
+    t_load_start = time.time()
     total_words = 0
     for vaddr, blob in loads:
         for i in range(0, len(blob), 4):
@@ -79,10 +80,13 @@ def main():
                 print(f"FAIL: W 写 0x{addr:08X} 响应 {r!r}（3 次重试失败）")
                 return 1
             total_words += 1
-            time.sleep(0.015)  # 15ms 间隔防 host 处理不过来
-    print(f"加载完成: {total_words} 字")
+            time.sleep(0.002)  # 2ms 间隔（T019 P3 实测最小安全值，原 15ms）
+    t_load_end = time.time()
+    load_bytes = sum(len(b) for _, b in loads)
+    print(f"加载完成: {total_words} 字（{load_bytes} 字节）耗时 {t_load_end - t_load_start:.2f}s")
 
     # 2) S 启动
+    t_start_sent = time.time()
     r = send_cmd(s, "S\n")
     print(f"S 启动响应: {r!r}")
 
@@ -98,7 +102,8 @@ def main():
                 status = 0
             if status & 1:
                 halted = True
-                print(f"HALTED 确认: {r!r}")
+                t_halted = time.time()
+                print(f"HALTED 确认: {r!r}（执行耗时 {t_halted - t_start_sent:.3f}s）")
                 break
         time.sleep(0.1)
     if not halted:

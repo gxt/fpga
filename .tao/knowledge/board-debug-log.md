@@ -171,3 +171,11 @@
 2. **0x30004 是 pcStartReg（启动地址寄存器）非运行 PC**；STATUS=1 无法区分"初始 halted"vs"跑完 halted"——判定核执行需回读结果数组（DTCM 内容）。
 3. 50MHz signoff WNS=-0.175ns（核内 dm→retirement_buffer，布线 81%），**上板实测稳定 → 接受**（决策 A）。
 4. 早期"核未启动"误判：csr_rw_diag 证实 CSR 写读全部正常（PC_START/CTRL），最终 dtcm_diag（回读 DTCM=42）确认核执行正常——**诊断应优先回读数据而非只看 STATUS/PC**。
+
+## T019 UART 加载时间评测（2026-08-26）
+
+- **加载**：928 字节 @115200 = **1.64s**（优化后；原 119.77s 系 load_elf `read(256)` 等满 timeout 假象）
+- **执行**：核真实 <1ms（50MHz 下微秒级）
+- **坑**：`s.read(256)` 在 pyserial 每次阻塞至 serial timeout(0.5s) → 每命令固定 0.5s；改 `in_waiting` 读取解决（73 倍加速）
+- **host 最小安全发送间隔 = 2ms**（1ms：1OK+19ERR；2ms+：全 OK）；host 不支持无间隔连续命令
+- 提波特率（>115200）需改 top UART DIV + 重新综合
