@@ -16,6 +16,8 @@ module tb_soc;
     logic uart_tx;
     logic led_halted, led_fault, led_locked;
     logic [2:0] gpio_led;
+    logic [31:0] st;
+    logic [31:0] dtcm;
 
     top_coralnpu_soc #(
         .CORE_CLK_HZ (20_000_000),
@@ -131,7 +133,6 @@ module tb_soc;
         $display("TB: core started");
 
         // 3) 轮询 STATUS（R 读 0x30008）直到 HALTED
-        logic [31:0] st;
         for (int i = 0; i < 100; i++) begin
             read_word(32'h00030008, st);
             if (st & 1) begin
@@ -141,7 +142,6 @@ module tb_soc;
         end
 
         // 4) 回读 DTCM 0x10000（应=42）
-        logic [31:0] dtcm;
         read_word(32'h00010000, dtcm);
         if (dtcm == 32'h2A) begin
             $display("TB: DTCM[0x10000]=42 OK");
