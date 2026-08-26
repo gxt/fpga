@@ -13,7 +13,7 @@ module tb_soc;
     logic clk_n = 1'b0;
     logic rst_btn_n = 1'b0;
     logic uart_rx = 1'b1;
-    logic uart_tx;
+    logic uart_tx = 1'b1;   // 初始 idle 高，避免 x 触发 negedge
     logic led_halted, led_fault, led_locked;
     logic [2:0] gpio_led;
     logic [31:0] st;
