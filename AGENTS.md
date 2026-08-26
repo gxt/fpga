@@ -83,9 +83,9 @@ workspace/
 
 ## 五、201 ↔ 202 同步时机
 
-1. **git 仓库**：master 仅 201 提交。**201 每次提交后主动同步 202**（`git pull`），202 开始任务前确认已最新
-2. **RTL 产物**：核 SV 有更新时 `sync.sh push rtl <key>`（覆盖同名文件）
-3. **synth 目录**：rtl/xdc/tb/tcl 有更新时 `sync.sh push synth`
-4. **workspace working.sh**：agent 生成的脚本/任务目录需 rsync/scp 到执行地机器（workspace 是本地目录，不走 git）
+1. **git 仓库（主通道）**：master 仅 201 提交。**201 提交后 202 `git pull` 同步**（synth 的 rtl/xdc/tcl/tb 全部 git 管理，202 靠 git pull 获取，**不再用 push synth**——避免 rsync 覆盖致 git 状态冲突）
+2. **RTL 产物**：核 SV 有更新时 `sync.sh push rtl <key>`（bazel 产物非 git，覆盖同名文件）
+3. **workspace working.sh**：agent 生成的脚本需 rsync/scp 到执行地机器（workspace 是本地目录，不走 git）
+4. **git pull 冲突处理**：若 202 报"local changes would be overwritten"，先 `git checkout -- <文件>` 丢弃本地（本地改动来自旧版 push synth 残留或与提交一致的内容），再 pull
 
 （目录重组过程中此结构会随改动更新）

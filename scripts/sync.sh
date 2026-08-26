@@ -7,7 +7,8 @@
 #   ./sync.sh push src                推送 coralnpu 源码到机器202（rsync 增量）
 #   ./sync.sh push rtl <name>...      推送 bazel RTL 产物到机器202 workspace/rtl_out/
 #                                     name: core_mini_axi | rvv_core_mini_axi
-#   ./sync.sh push synth              推送 synth/ 脚本目录本身到机器202
+#   ./sync.sh push synth              [废弃] 推送 synth/ 目录到机器202（synth 跟踪文件已 git 管理，
+#                                     202 用 git pull 同步；此命令会覆盖致 git 状态冲突，勿用）
 #   ./sync.sh push all                等价: push src + push rtl core_mini_axi
 #   ./sync.sh pull [<subdir>]         从机器202 workspace/ 拉回结果到机器201 synth/out/（只拉保留项）
 #   ./sync.sh exec "<机器202命令>"        在机器202执行命令（BatchMode 免密）
@@ -136,7 +137,7 @@ main() {
       case "$what" in
         src)   cmd_push_src ;;
         rtl)   [[ $# -gt 0 ]] || die "push rtl 需要产物 key"; cmd_push_rtl "$@" ;;
-        synth) cmd_push_synth ;;
+        synth) echo "[废弃] push synth 勿用：synth 用 git pull 同步"; cmd_push_synth ;;
         all)   cmd_push_all ;;
         *)     die "未知 push 目标: $what（src|rtl <key>...|synth|all）" ;;
       esac ;;
