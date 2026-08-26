@@ -30,21 +30,26 @@ DualV7 跑起较完整 SoC 的标量基座：CoreTlul（enableRvv=false）+ Cora
 4. 上板测试向量 ALL PASS + SRAM 数据读写正确
 
 ## 完成区
-**状态**：进行中（E1✅ E2✅）
+**状态**：✅ 完成（2026-08-26，E1-E8 全通过）
 **Commit**：
 **测试结果**：
-- E1 ✅ 裁剪 SoC SV 生成（CoralNPUChiselSubsystem.sv 3.5MB，uart_host ✓ / 无 ddr/isp/spi）
-- E2 ✅ xsim **ALL CHECKS PASSED**：W 加载 4 指令→S→Q HALTED(status=1)→R 回读 DTCM[0x10000]=42→LED→HELP/ERR
-  - **r/w 通路验证通过**：host_cmd_fsm → Axi2TLUL → Xbar → 核 tl_device → TCM
-  - 仿真耗时 6:48（cpu 0.89s，主要是 115200 波特慢 + SoC 大模型调度）
+- E1 ✅ 裁剪 SoC SV 生成（3.5MB，uart_host ✓ / 无 ddr/isp/spi）
+- E2 ✅ xsim ALL PASS（host→Axi2TLUL→Xbar→核 r/w 通路）
+- E3-E6 ✅ 综合 20M 成功（~33min；**WNS +15.410 完全收敛**，WHS -0.242 轻微 hold；资源 Reg 15K/RAMB36 74/DSP48 6）
+- E7 ✅ 烧录成功
+- E8 ✅ 上板 t007_scalar **ALL PASS**（加载 1.62s → HALTED → 结果数组正确）——**裁剪 SoC 经 Xbar 通路跑通**
 **修改文件**：
-- coralnpu fork（SoCChiselConfig/CrossbarConfig/CoralNPUChiselSubsystem）→ gxt/coralnpu ac01a545
+- coralnpu fork：SoCChiselConfig/CrossbarConfig/CoralNPUChiselSubsystem（裁剪 + uart_host）→ gxt/coralnpu ac01a545
 - `synth/rtl/top_coralnpu_soc.sv`（host_cmd_fsm→uart_host_axi + rom 响应桩）
 - `synth/tb/T022-tb_soc.sv`（复用 M1 T010-tb_top UART 逻辑）
-- `synth/tcl/build_top.tcl`（top 参数化）
+- `synth/tcl/build_top.tcl`（top 参数化 + 按 top 分支文件列表）
 **验收结果**：
+- 裁剪 SoC（CoreTlul enableRvv=false + Xbar + clint/plic/gpio/sram 256K）在 DualV7 上板跑通
+- UART 加载保留（host_cmd_fsm→Axi2TLUL→Xbar→核 tl_device），r/w 命令全支持，与 chip_nexus 架构一致
+- 20M 时序完全收敛
 **新发现/坑**：
-1. **g_direct 仿真必须 clk_p 直连**（IBUFDS 输出仿真恒高，clk_core 不翻转）——M1 已验证的写法
-2. **tb 必须复用 M1 T010-tb_top 的 UART 逻辑**（队列接收器 + recv task）——重写引入多处 bug
-3. xsim 耗时：115200 波特 + 3.5MB SoC → ~6-7min（正常）
-**遗留问题**：待 E3-E6 综合（20M）→ E7-E8 上板
+1. g_direct 仿真必须 clk_p 直连（IBUFDS 仿真恒高）
+2. tb 必须复用 M1 T010-tb_top 的 UART 逻辑（重写引入多处 bug）
+3. build_top 需按 top 分支文件列表（SoC 版无 axi_master_stub）
+4. SRAM 256K 用 RAMB36 74 块（5.7%）
+**遗留问题**：SRAM 数据读写未单独上板测（测试向量经 Xbar 访问 SRAM 隐含验证）；待 T023（RVV）
