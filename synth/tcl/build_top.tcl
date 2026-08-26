@@ -72,9 +72,11 @@ if {$mode eq "proj"} {
 }
 
 # ---- 综合 ----
-# RVV 核依赖 VLEN_128/ZVE32F_ON 宏（T017 经验：`define 不跨文件，须 synth_design 注入）
+# RVV 宏与 chip_nexus.core 保持一致（VLEN_128/ZVE32F_ON/TB_SUPPORT 均为 default true）。
+# RVVI_ON 不加（T017 教训：激活 rvviTrace 超综合限制；CoreTlul 无 RVVI 端口）。
+# `define 不跨文件，须 synth_design 注入（T017 经验）。
 if {$top eq "top_coralnpu_soc"} {
-    synth_design -top $top -part $part -verilog_define {VLEN_128 ZVE32F_ON}
+    synth_design -top $top -part $part -verilog_define {VLEN_128 ZVE32F_ON TB_SUPPORT}
 } else {
     synth_design -top $top -part $part
 }
