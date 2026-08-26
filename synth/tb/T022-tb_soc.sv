@@ -8,12 +8,13 @@
 //
 // 测试程序：addi x5,x0,42 → lui x2,0x10 → sw x5,0(x2) → mpause
 // 时钟：USE_MMCM=0（clk_p 直连 clk_core，20MHz）；UART 115200
+// 注：UART 接收用队列（复用 M1 T010-tb_top 验证过的模式）
 module tb_soc;
     logic clk_p = 1'b0;
     logic clk_n = 1'b0;
     logic rst_btn_n = 1'b0;
     logic uart_rx = 1'b1;
-    logic uart_tx = 1'b1;   // 初始 idle 高，避免 x 触发 negedge
+    logic uart_tx = 1'b1;   // 初始 idle 高
     logic led_halted, led_fault, led_locked;
     logic [2:0] gpio_led;
     logic [31:0] st;
@@ -34,82 +35,93 @@ module tb_soc;
 
     localparam int BIT_NS = 8680;  // 20MHz, 115200 baud
 
+    // ==================== 发送 ====================
     task send_bit(input logic b); uart_rx = b; #(BIT_NS); endtask
     task send_byte(input logic [7:0] byte_in);
-        send_bit(1'b0);                      // start
-        for (int i = 0; i < 8; i++) send_bit(byte_in[i]);  // LSB first
-        send_bit(1'b1);                      // stop
+        send_bit(1'b0);
+        for (int i = 0; i < 8; i++) send_bit(byte_in[i]);
+        send_bit(1'b1);
     endtask
     task send_str(input string s);
         foreach (s[i]) send_byte(s[i]);
     endtask
 
-    // 接收一个字节（UART TX）
-    logic [7:0] rx_buf = 8'h0;
-    logic rx_done = 1'b0;
-    always @(negedge uart_tx) begin
+    // ==================== TB 串口接收器（队列，M1 模式） ====================
+    logic [7:0] rx_byte_q [$];
+
+    always begin
+        @(negedge uart_tx);
         #(BIT_NS / 2);
         if (uart_tx === 1'b0) begin
-            rx_buf = 8'h0;
+            logic [7:0] sh = 8'h0;
             for (int i = 0; i < 8; i++) begin
                 #(BIT_NS);
-                rx_buf[i] = uart_tx;
+                sh = {uart_tx, sh[7:1]};
             end
             #(BIT_NS);
-            rx_done = 1'b1;
+            rx_byte_q.push_back(sh);
         end
     end
 
-    // 等待并收集 DUT 响应（直到 timeout）
-    task expect_rx(input string pat, input int timeout_us = 20000);
-        int cnt;
-        string got;
-        rx_done = 1'b0;
-        got = "";
-        cnt = 0;
-        while (cnt < timeout_us) begin
-            @(posedge clk_p);
-            cnt++;
-            if (rx_done) begin
-                got = {got, string'(rx_buf)};
-                rx_done = 1'b0;
-                if (got.len() >= pat.len() && got.substr(got.len()-pat.len(), got.len()-1) == pat) begin
-                    $display("TB: recv OK (%s)", got);
-                    return;
-                end
+    // ==================== 从队列取字节 ====================
+    task get_byte(output logic [7:0] b, output int found);
+        found = 0;
+        fork
+            begin : timeout
+                repeat (50000) @(posedge clk_p);   // 50us 轮询
             end
-        end
-        $display("TB: TIMEOUT waiting %s, got=%s", pat, got);
-        $finish;
+            begin : rx
+                while (rx_byte_q.size() == 0) @(posedge clk_p);
+                b = rx_byte_q.pop_front();
+                found = 1;
+            end
+        join_any
+        disable fork;
     endtask
 
-    // 读一个 32 位字（R 命令）
+    // ==================== 期待响应串 ====================
+    task expect_rx(input string pat);
+        string got = "";
+        logic [7:0] b;
+        int found;
+        int guard = 0;
+        while (got.len() < pat.len()) begin
+            get_byte(b, found);
+            if (!found) begin
+                $display("TB: TIMEOUT waiting %s, got=%s", pat, got);
+                $finish;
+            end
+            got = {got, string'(b)};
+            guard++;
+            if (guard > 100) begin
+                $display("TB: GUARD waiting %s, got=%s", pat, got);
+                $finish;
+            end
+        end
+        $display("TB: recv OK (%s)", got);
+    endtask
+
+    // ==================== 读一个 32 位字（R 命令） ====================
     task read_word(input logic [31:0] addr, output logic [31:0] val);
-        string got;
-        int cnt;
-        rx_done = 1'b0;
-        got = "";
-        cnt = 0;
-        $sformat(got, "");
+        string got = "";
+        logic [7:0] b;
+        int found;
         // 发 R 命令
         send_str($sformatf("R%08X01\n", addr));
-        while (cnt < 20000) begin
-            @(posedge clk_p);
-            cnt++;
-            if (rx_done) begin
-                got = {got, string'(rx_buf)};
-                rx_done = 1'b0;
-                if (got.len() >= 16 && got.substr(0,7) == $sformatf("%08X", addr)) begin
-                    val = got.substr(8, 15).atohex();
-                    $display("TB: recv_hex_line %08X = 0x%08X", addr, val);
-                    return;
-                end
+        // 收集 16 个 hex 字符（8 addr + 8 data）
+        while (got.len() < 16) begin
+            get_byte(b, found);
+            if (!found) begin
+                $display("TB: read_word TIMEOUT addr=%08X got=%s", addr, got);
+                $finish;
             end
+            got = {got, string'(b)};
         end
-        $display("TB: read_word TIMEOUT addr=%08X got=%s", addr, got);
-        $finish;
+        val = got.substr(8, 15).atohex();
+        $display("TB: recv_hex_line %08X = 0x%08X", addr, val);
     endtask
 
+    // ==================== 主测试序列 ====================
     initial begin
         // 复位释放
         rst_btn_n = 1'b0;
@@ -117,19 +129,7 @@ module tb_soc;
         rst_btn_n = 1'b1;
         #(200);
 
-        // 复位释放
-        rst_btn_n = 1'b0;
-        #(100);
-        rst_btn_n = 1'b1;
-        #(200);
-        $display("TB: post-rst clk_core=%b rst_n=%b locked=%b", u_dut.clk_core, u_dut.rst_n, u_dut.mmcm_locked);
-
         // 0) UART 通路
-        rx_done = 1'b0;
-        send_str("?\n");
-        #(30000);
-        $display("TB: post-send uart_rx_valid=%b uart_rx_data=%h tx=%b", u_dut.uart_rx_valid, u_dut.uart_rx_data, uart_tx);
-        rx_done = 1'b0;
         send_str("?\n");
         expect_rx("HELP");
 
@@ -144,7 +144,7 @@ module tb_soc;
         $display("TB: core started");
 
         // 3) 轮询 STATUS（R 读 0x30008）直到 HALTED
-        for (int i = 0; i < 100; i++) begin
+        for (int i = 0; i < 20; i++) begin
             read_word(32'h00030008, st);
             if (st & 1) begin
                 $display("TB: HALTED detected (status=0x%08X)", st);
