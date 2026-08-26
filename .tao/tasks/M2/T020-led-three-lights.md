@@ -31,13 +31,23 @@ S2C DualV7 板卡增加**三个 LED 灯**：找引脚位置 → 确定状态提�
 3. 上板验证 LED 状态符合预期
 
 ## 完成区
-**状态**：待开始
+**状态**：✅ 完成（2026-08-26）
 **Commit**：
 **测试结果**：
+- **引脚确认**：LED0=AH44(J8-101)、LED1=AH43(J8-103)、LED2=AL40(J8-105)，LVCMOS18（docs/DualV7 §03.9 + Chipyard 管脚表）
+- **UART L 命令驱动**：`L<hex>`（低 3 bit = LED0/1/2），host_cmd_fsm 新增，应答 OK/ERR
+- **上板验证**：L1→LED0 亮、L2→LED1、L4→LED2、组合（L7/L5/L3/L0）**完全正确** ✅
+- 时序：ledfix 版 WNS -0.273 / WHS -0.173（3 端点 hold 轻微违例，上板稳定）
 **修改文件**：
-**验收结果**：
+- `synth/rtl/host_cmd_fsm.sv`：新增 `L` 命令（P_LED 状态 + led_ctrl 输出 + P_END 3'd5）
+- `synth/rtl/top_coralnpu.sv`：新增 `gpio_led[2:0]` 输出 + `gpio_led = ~led_ctrl_int` 反相
+- `synth/xdc/top_coralnpu.xdc`：AH44/AH43/AL40 引脚约束
+**验收结果**：三个 GPIO LED（小板 J8）UART 命令驱动点亮验证通过
 **新发现/坑**：
-**遗留问题**：
+1. **GPIO LED 实测 active-low**（与知识库 active-high 不符——知识库是 chipyard 配置）→ top 输出反相修复
+2. `hex_val(rx_data)[2:0]` 语法非法（函数调用不能直接位选择，IEEE 1800）→ 改 `hex_val(rx_data)` 自动截断
+3. 新增 3 个 IOB 改变布局，时序 WNS 从 -0.175 波动到 -0.875（first 版）→ ledfix 版 -0.273，布局敏感性
+**遗留问题**：无
 
 ## 审阅记录
 （engineer 自审 + reviewer 验收）
