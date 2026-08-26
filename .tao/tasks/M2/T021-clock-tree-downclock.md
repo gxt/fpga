@@ -28,13 +28,23 @@
 3. 降频对功能/时序的影响结论
 
 ## 完成区
-**状态**：待开始
+**状态**：✅ 完成（2026-08-26，20M 部分；10M 挂起待需要时）
 **Commit**：
 **测试结果**：
+- **时钟树分析**：单时钟域 `clk_mmcm_out`（50M→20M），输入 100M（s2cclk_1），MMCM 输出经 BUFG → clk_core；无跨时钟域/CDC
+- **20M 实验**：综合成功（~32min）；**WNS +13.848 / WHS +0.026，0 违例完全收敛**；上板 t007_scalar **ALL PASS**（UART 115200 正常，rx DIV=11 误差 1.4% 无影响）
+- **频率对比**：50M（T018）WNS -0.175~-0.875 违例 vs **20M WNS +13.848 收敛**——降频彻底解决时序问题
 **修改文件**：
+- `synth/rtl/top_coralnpu.sv`：MMCM CLKOUT0_DIVIDE_F + CORE_CLK_HZ（50M→20M，DIVIDE 24→60）
 **验收结果**：
+- **20M 为后续默认频率**（用户决策）：时序收敛 + 功能验证 + UART 正常
 **新发现/坑**：
+1. **降频正确方法 = 改 MMCM 输出分频（CLKOUT0_DIVIDE_F），VCO 1200M 不变**；T017 曾错误地改 XDC 输入约束致 VCO 计算 240M 超下限失败
+2. 降频对 UART 影响：rx 16x 过采样 DIV 变小（20M 时 11，误差 1.4% OK；10M 时 5，误差 8.5% 风险）
+3. 时钟域为单域（UART 用 clk_core 分频），无 CDC——后续完整 SoC 加 DDR 域才引入 CDC
 **遗留问题**：
+- **10M 实验挂起**：10M 时 UART rx 误差 8.5% 可能不稳（除非改 uart_rx 过采样系数或调波特率）；待需要时再综合/测试
+- chip_nexus 多时钟域（6 域）为 Nexus 平台设计，DualV7 按硬件裁剪（ISP 裁、SPI 视需要、DDR3 适配）——见 soc-analysis §6
 
 ## 审阅记录
 （engineer 自审 + reviewer 验收）

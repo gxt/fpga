@@ -30,3 +30,4 @@ build/
 # 202（Vivado 机）侧工作产物（不走 git，经 sync.sh rsync）
 workspace/
 rtl_out/
+__pycache__/
