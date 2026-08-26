@@ -79,13 +79,13 @@ module tb_soc;
         disable fork;
     endtask
 
-    // ==================== 期待响应串 ====================
+    // ==================== 期待响应串（累积到尾部匹配，容忍前导残留） ====================
     task expect_rx(input string pat);
         string got = "";
         logic [7:0] b;
         int found;
         int guard = 0;
-        while (got.len() < pat.len()) begin
+        while (1) begin
             get_byte(b, found);
             if (!found) begin
                 $display("TB: TIMEOUT waiting %s, got=%s", pat, got);
@@ -93,32 +93,51 @@ module tb_soc;
             end
             got = {got, string'(b)};
             guard++;
+            if (got.len() >= pat.len() && got.substr(got.len()-pat.len(), got.len()-1) == pat) begin
+                $display("TB: recv OK (%s)", pat);
+                return;
+            end
             if (guard > 100) begin
                 $display("TB: GUARD waiting %s, got=%s", pat, got);
                 $finish;
             end
         end
-        $display("TB: recv OK (%s)", got);
     endtask
 
-    // ==================== 读一个 32 位字（R 命令） ====================
+    // ==================== 读一个 32 位字（R 命令，找 addr 尾部匹配再取 data） ====================
     task read_word(input logic [31:0] addr, output logic [31:0] val);
         string got = "";
         logic [7:0] b;
         int found;
-        // 发 R 命令
+        int guard = 0;
         send_str($sformatf("R%08X01\n", addr));
-        // 收集 16 个 hex 字符（8 addr + 8 data）
-        while (got.len() < 16) begin
+        while (1) begin
             get_byte(b, found);
             if (!found) begin
                 $display("TB: read_word TIMEOUT addr=%08X got=%s", addr, got);
                 $finish;
             end
             got = {got, string'(b)};
+            if (got.len() >= 8 && got.substr(got.len()-8, got.len()-1) == $sformatf("%08X", addr)) begin
+                string data = "";
+                for (int i = 0; i < 8; i++) begin
+                    get_byte(b, found);
+                    if (!found) begin
+                        $display("TB: read_word data TIMEOUT addr=%08X", addr);
+                        $finish;
+                    end
+                    data = {data, string'(b)};
+                end
+                val = data.atohex();
+                $display("TB: recv_hex_line %08X = 0x%08X", addr, val);
+                return;
+            end
+            guard++;
+            if (guard > 100) begin
+                $display("TB: read_word GUARD addr=%08X got=%s", addr, got);
+                $finish;
+            end
         end
-        val = got.substr(8, 15).atohex();
-        $display("TB: recv_hex_line %08X = 0x%08X", addr, val);
     endtask
 
     // ==================== 主测试序列 ====================
