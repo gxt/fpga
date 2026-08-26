@@ -20,8 +20,9 @@ set rtl_dir     [lindex $argv 1]
 set top_rtl_dir [lindex $argv 2]
 set xdc_dir     [lindex $argv 3]
 set mode        [lindex $argv 4]
+set top         [lindex $argv 5]
 set part        "xc7v2000tflg1925-1"
-set top         "top_coralnpu"
+if {$top eq ""} { set top "top_coralnpu" }
 
 if {$work_dir eq ""} { error "缺少 work_dir 参数" }
 if {$rtl_dir eq ""} { error "缺少 rtl_dir 参数" }
