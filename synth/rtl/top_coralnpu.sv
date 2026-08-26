@@ -201,6 +201,7 @@ module top_coralnpu #(
     logic [5:0]  s_rid;
     logic [1:0]  s_rresp;
     logic        s_rlast;
+    logic [2:0]  led_ctrl_int;      // host L 命令输出（T020）
 
     host_cmd_fsm u_host (
         .clk       (clk_core),
@@ -247,7 +248,7 @@ module top_coralnpu #(
         .s_rid     (s_rid),
         .s_rresp   (s_rresp),
         .s_rlast   (s_rlast),
-        .led_ctrl  (gpio_led)
+        .led_ctrl  (led_ctrl_int)
     );
 
     // ---- CoreMiniAxi（bazel 生成，不改动） ----
@@ -449,4 +450,6 @@ module top_coralnpu #(
     assign led_halted = core_halted;
     assign led_fault  = core_fault;
     assign led_locked = mmcm_locked;
+    // GPIO LED（小板 J8 AH44/AH43/AL40）：实测 active-low（L 命令高=灭），反相使 L 命令语义 active-high
+    assign gpio_led = ~led_ctrl_int;
 endmodule
