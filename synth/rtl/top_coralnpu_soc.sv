@@ -199,7 +199,6 @@ module top_coralnpu_soc #(
     logic        rom_d_bits_error;
 
     assign rom_a_ready = 1'b1;
-    assign rom_d_ready = 1'b1;
     always_ff @(posedge clk_core or negedge rst_n) begin
         if (!rst_n) begin
             rom_d_valid <= 1'b0;
