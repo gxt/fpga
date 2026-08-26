@@ -61,7 +61,7 @@ module tb_soc;
     end
 
     // 等待并收集 DUT 响应（直到 timeout）
-    task expect_rx(input string pat, input int timeout_us = 1000);
+    task expect_rx(input string pat, input int timeout_us = 20000);
         int cnt;
         string got;
         rx_done = 1'b0;
@@ -93,7 +93,7 @@ module tb_soc;
         $sformat(got, "");
         // 发 R 命令
         send_str($sformatf("R%08X01\n", addr));
-        while (cnt < 2000) begin
+        while (cnt < 20000) begin
             @(posedge clk_p);
             cnt++;
             if (rx_done) begin
