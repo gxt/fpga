@@ -117,12 +117,6 @@ module tb_soc;
         rst_btn_n = 1'b1;
         #(200);
 
-        // 诊断：top 内部时钟/复位/host 状态
-        $display("TB: diag clk_core=%b rst_n=%b locked=%b uart_rx_valid=%b uart_tx=%b",
-                 u_dut.clk_core, u_dut.rst_n, u_dut.mmcm_locked, u_dut.uart_rx_valid, uart_tx);
-        #(100);
-        $display("TB: diag2 uart_rx_valid=%b", u_dut.uart_rx_valid);
-
         // 0) UART 通路
         rx_done = 1'b0;
         send_str("?\n");

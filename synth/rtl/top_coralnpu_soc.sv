@@ -98,8 +98,9 @@ module top_coralnpu_soc #(
         BUFG u_bufg_fb   (.I(clk_fb),       .O(clk_fb_buf));
         BUFG u_bufg_core (.I(clk_mmcm_out), .O(clk_core));
     end else begin : g_direct
+        // 仿真/调试：clk_p 直连（不经 IBUFDS，避免仿真模型问题），mmcm_locked 恒 1
         assign mmcm_locked = 1'b1;
-        BUFG u_bufg_core (.I(clk_ref), .O(clk_core));
+        BUFG u_bufg_core (.I(clk_p), .O(clk_core));
     end
 
     // ==================== 复位 ====================
