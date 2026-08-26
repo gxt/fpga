@@ -63,20 +63,19 @@ module tb_soc;
         end
     end
 
-    // ==================== 从队列取字节 ====================
+    // ==================== 从队列取字节（简单轮询，无 fork） ====================
     task get_byte(output logic [7:0] b, output int found);
+        int cnt = 0;
         found = 0;
-        fork
-            begin : timeout
-                repeat (50000) @(posedge clk_p);   // 50us 轮询
-            end
-            begin : rx
-                while (rx_byte_q.size() == 0) @(posedge clk_p);
+        while (cnt < 50000) begin
+            @(posedge clk_p);
+            cnt++;
+            if (rx_byte_q.size() > 0) begin
                 b = rx_byte_q.pop_front();
                 found = 1;
+                return;
             end
-        join_any
-        disable fork;
+        end
     endtask
 
     // ==================== 期待响应串（累积到尾部匹配，容忍前导残留） ====================
