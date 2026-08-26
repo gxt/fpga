@@ -117,7 +117,18 @@ module tb_soc;
         rst_btn_n = 1'b1;
         #(200);
 
+        // 复位释放
+        rst_btn_n = 1'b0;
+        #(100);
+        rst_btn_n = 1'b1;
+        #(200);
+        $display("TB: post-rst clk_core=%b rst_n=%b locked=%b", u_dut.clk_core, u_dut.rst_n, u_dut.mmcm_locked);
+
         // 0) UART 通路
+        rx_done = 1'b0;
+        send_str("?\n");
+        #(30000);
+        $display("TB: post-send uart_rx_valid=%b uart_rx_data=%h tx=%b", u_dut.uart_rx_valid, u_dut.uart_rx_data, uart_tx);
         rx_done = 1'b0;
         send_str("?\n");
         expect_rx("HELP");
