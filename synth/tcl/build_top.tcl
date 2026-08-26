@@ -37,28 +37,37 @@ puts "==> top_rtl_dir=$top_rtl_dir"
 puts "==> xdc_dir=$xdc_dir"
 
 # ---- 读源（core_mini_axi 为 bazel 生成，不改动） ----
-if {$mode eq "proj"} {
-    # 工程模式：建 .xpr 工程
-    set proj_name [file tail [file normalize $work_dir]]
-    create_project $proj_name $work_dir -part $part -force
-    add_files -norecurse [list \
+# ---- 读源（按 top 分支：top_coralnpu_soc 用裁剪 SoC，否则 M1/M2 的 CoreMiniAxi） ----
+if {$top eq "top_coralnpu_soc"} {
+    set src_files [list \
+        $rtl_dir/CoralNPUChiselSubsystem.sv \
+        $top_rtl_dir/top_coralnpu_soc.sv \
+        $top_rtl_dir/uart_rx.sv \
+        $top_rtl_dir/uart_tx.sv \
+        $top_rtl_dir/host_cmd_fsm.sv]
+} else {
+    set src_files [list \
         $rtl_dir/CoreMiniAxi.sv \
         $top_rtl_dir/top_coralnpu.sv \
         $top_rtl_dir/uart_rx.sv \
         $top_rtl_dir/uart_tx.sv \
         $top_rtl_dir/host_cmd_fsm.sv \
         $top_rtl_dir/axi_master_stub.sv]
+}
+
+if {$mode eq "proj"} {
+    # 工程模式：建 .xpr 工程
+    set proj_name [file tail [file normalize $work_dir]]
+    create_project $proj_name $work_dir -part $part -force
+    add_files -norecurse $src_files
     add_files -fileset constrs_1 -norecurse $xdc_dir/top_coralnpu.xdc
     set_property top $top [get_filesets sources_1]
     update_compile_order -fileset sources_1
     puts "==> 工程已创建: $work_dir/$proj_name.xpr"
 } else {
-    read_verilog -sv $rtl_dir/CoreMiniAxi.sv
-    read_verilog -sv $top_rtl_dir/top_coralnpu.sv
-    read_verilog -sv $top_rtl_dir/uart_rx.sv
-    read_verilog -sv $top_rtl_dir/uart_tx.sv
-    read_verilog -sv $top_rtl_dir/host_cmd_fsm.sv
-    read_verilog -sv $top_rtl_dir/axi_master_stub.sv
+    foreach f $src_files {
+        read_verilog -sv $f
+    }
     read_xdc $xdc_dir/top_coralnpu.xdc
 }
 
