@@ -131,3 +131,34 @@ CoralNPUChiselSubsystem = **TileLink-UL（TL-UL）crossbar 主干** + 多主机 
 - [ ] S2C 板是否有可用 SPI flash/GPIO 引出（spi2tlul 引导可行性）
 - [ ] 阶段 A 是否保留 DMA（不保留可简化）
 - [ ] UART 外设采用"自写 TLUL UART"还是"host_cmd_fsm 改造"
+
+## 6. coralnpu 自带板级顶层 vs 我们的 top_coralnpu.sv（2026-08-25，T021 后讨论）
+
+### 6.1 coralnpu 自带的板级顶层（`coralnpu/fpga/rtl/`）
+
+| 文件 | module | 用途 |
+| --- | --- | --- |
+| `coralnpu_soc.sv` | `coralnpu_soc` | **SoC 级顶层**：例化完整 CoralNPUChiselSubsystem（TL-UL crossbar + 外设 + SPI 引导） |
+| `chip_nexus.sv` | `chip_nexus` | **Nexus FPGA 平台板级顶层**（含 clkgen + 引脚），T009 综合的就是它 |
+| `chip_verilator.sv` | `chip_verilator` | Verilator 仿真顶层 |
+
+自带的 SoC/板级顶层参数化强（MemInitFile、ClockFrequencyMhz、ItcmSizeKBytes、EnableAutoboot 等）。
+
+### 6.2 对比
+
+| 维度 | coralnpu 自带（chip_nexus/coralnpu_soc） | 我们的 top_coralnpu.sv（synth/rtl/） |
+| --- | --- | --- |
+| 目标板 | Google Nexus FPGA 平台 | S2C DualV7 |
+| 器件族 | UltraScale+（clkgen_xilultrascaleplus） | 7 系列 xc7v2000t（MMCM） |
+| 核形态 | 完整 SoC（crossbar + ROM/SRAM/DDR + SPI/GPIO/UART 外设） | 最小单核（CoreMiniAxi + UART host 通路 + m_axi 响应桩） |
+| 引导方式 | SPI（spi2tlul/autoboot） | UART host（load_elf_uart.py） |
+| 参数化 | 大量 parameter | 相对固定 |
+| 用途 | Google 官方平台演示 + 可综合性验证 | S2C 上板闭环（M1 定制） |
+
+### 6.3 为何不用自带的
+
+1. **器件族不兼容**：自带 clkgen/引脚面向 UltraScale+，S2C 是 7 系列 V7
+2. **外设依赖**：完整 SoC 的 SPI flash/DDR4/ISP 在 S2C 上的适配 = 后续方向
+3. M1 的最小方案（UART host 加载）已在 S2C 跑通上板闭环
+
+> **待 T021 完成后讨论**：是否/如何在 S2C 上引入 coralnpu 自带 SoC 顶层（器件适配 + 外设裁剪 + 引导改造）。
