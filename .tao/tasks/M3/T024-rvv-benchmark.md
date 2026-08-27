@@ -41,10 +41,18 @@
 - 执行时间 wall 测量受 0.1s 轮询粒度影响（cycles 准确）
 
 ## 完成区
-**状态**：第一轮进行中（matmul 性能完成，wfi 类待决策）
+**状态**：✅ 第一轮完成（2026-08-26）
 **Commit**：
-**测试结果**：见 bench_result.md
-**修改文件**：workspace/T024-first/{bench_rvv.py, seg_analysis.py, diag_*.py, working.sh}
+**测试结果**：606 个全测，**604 PASS + 2 FAIL（均故意 fault 测试）**，正常用例 100% 通过
+**修改文件**：`tests/rvv_bench/`（bench_rvv.py/seg_analysis.py/elf_segments.json 评测工具）
 **验收结果**：
+- 评测框架建立：构建 621 ELF + 段统计 + 自动分流（性能/smoke）+ wfi 唤醒 + 周期回读
+- 全量 606 个：604 PASS + 2 预期 FAIL（load_store8_fault/vill_test，故意 fault）
+- matmul 性能：8 个 cycles → MACs/Cycle 7-25%（optimized 25.3% 最高）
+- wfi 类连续评测解决（CLINT MTIMECMP 唤醒）
 **新发现/坑**：
-**遗留问题**：
+- wfi 类用例用 wfi 结束（无 HALTED）→ smoke 模式
+- wfi 后核时钟门控 → CLINT MTIMECMP 触发定时器中断唤醒
+- 加载时核保持复位（CTRL=1），S 释放启动
+- 2 个 FAIL 是故意 fault 测试（load_store8_fault/vill_test），预期
+**遗留问题**：15 个超限用例（gemma 11 + highmem 4）待 T025（TCM 扩容）；可选扩展 tests/cocotb 顶层核级测试

@@ -179,3 +179,17 @@
 - **坑**：`s.read(256)` 在 pyserial 每次阻塞至 serial timeout(0.5s) → 每命令固定 0.5s；改 `in_waiting` 读取解决（73 倍加速）
 - **host 最小安全发送间隔 = 2ms**（1ms：1OK+19ERR；2ms+：全 OK）；host 不支持无间隔连续命令
 - 提波特率（>115200）需改 top UART DIV + 重新综合
+
+## M4 RVV 评测（2026-08-26，RVV SoC 20MHz）
+
+### wfi 唤醒方案（解决 wfi 类用例连续评测）
+- **问题**：wfi 类用例（汇编 RVV 测试用 `wfi` 结束）后，核时钟门控（CoreAxi cg disable，L109），host 写 TCM 卡
+- **方案**：host 写 **CLINT MTIMECMP（0x02004000 = MTIME+小值）** 触发定时器中断 → timer_irq → cg enable → 核时钟恢复 → host 写正常
+- 与 mtpause 对比：mpause（halted，时钟正常，STATUS=1）；wfi（时钟门控，STATUS=0）——matmul（mpause）连续评测无需唤醒
+
+### 评测框架坑
+1. **加载时核必须保持复位**（CTRL=1 不释放）：CTRL=0 释放后核立即运行占用 TCM 仲裁 → host 写卡
+2. **自动分流**：有 `csr_cycle_count` 符号 → 性能模式（HALTED+周期），无 → smoke 模式（加载+S 启动+无 fault）
+3. **2 个预期 FAIL**：load_store8_fault（load/store fault 测试）、vill_test（vill 非法 vtype fault 测试）——故意触发 fault，smoke 正确标记
+4. wfi 类用例无法用 HALTED 判定（程序不 halt，wfi 挂起）——需 smoke 或唤醒
+5. 评测工具：`tests/rvv_bench/`（bench_rvv.py/seg_analysis.py/elf_segments.json）
