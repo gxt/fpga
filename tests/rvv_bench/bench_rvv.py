@@ -45,7 +45,7 @@ def reset_core():
         w_word(CLINT_MTIMECMP_LO, (mt + 1000) & 0xFFFFFFFF)
         w_word(CLINT_MTIMECMP_LO + 4, mth)
     time.sleep(0.2)
-    send_cmd("W0003000000000001\n")  # CTRL=1 保持复位
+    send_cmd("W0020000000000001\n")  # CTRL=1 保持复位（highmem 布局 CSR @0x200000）
     time.sleep(0.2)
     while s.in_waiting: s.read(s.in_waiting)
 
@@ -56,8 +56,8 @@ def try_load(elf):
         return f"{os.path.basename(elf)} LOAD_ERR"
     total=0
     for vaddr, blob in loads:
-        if not (0 <= vaddr < 0x2000 or 0x10000 <= vaddr < 0x18000):
-            return None  # 非 TCM 段，跳过
+        if not (0 <= vaddr < 0x2000 or 0x100000 <= vaddr < 0x200000):
+            return None  # 非 TCM 段（highmem 布局：ITCM 8K @0x0 + DTCM 1M @0x100000），跳过
         for i in range(0, len(blob), 4):
             w=struct.unpack("<I", blob[i:i+4].ljust(4,b'\x00'))[0]
             addr=vaddr+i
@@ -86,7 +86,7 @@ def load_and_run(elf, cycle_addr=None):
         r=send_cmd("S\n")
         halted=False; cycles=None
         for _ in range(200):   # 20s 轮询（长运行程序预留）
-            st=r_word(0x30008)
+            st=r_word(0x200008)
             if st is not None and st&1:
                 halted=True; break
             time.sleep(0.1)
@@ -114,7 +114,7 @@ def load_and_smoke(elf):
         t0=time.time()
         r=send_cmd("S\n")
         time.sleep(0.3)   # 让程序跑一小段（确认核启动无 fault）
-        st=r_word(0x30008)
+        st=r_word(0x200008)
         # 核应处于运行/完成状态：STATUS bit0=0（未 halted）或 wfi；bit1=1 是 fault
         fault = (st is not None and (st & 2))
         if not fault:

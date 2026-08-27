@@ -221,8 +221,8 @@ module top_coralnpu_soc #(
     logic core_halted, core_fault;
     logic [7:0] gpio_o;
 
-    // ==================== CoralNPUChiselSubsystem（裁剪 SoC） ====================
-    CoralNPUChiselSubsystem u_soc (
+    // ==================== CoralNPUChiselSubsystemHighmem（裁剪 SoC, 1M/1M） ====================
+    CoralNPUChiselSubsystemHighmem u_soc (
         .io_clk_i(clk_core),
         .io_rst_ni(rst_n),
         // ---- uart_host AXI（host_cmd_fsm → Axi2TLUL → Xbar） ----
