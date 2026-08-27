@@ -40,7 +40,7 @@ puts "==> xdc_dir=$xdc_dir"
 # ---- 读源（按 top 分支：top_coralnpu_soc 用裁剪 SoC，否则 M1/M2 的 CoreMiniAxi） ----
 if {$top eq "top_coralnpu_soc"} {
     set src_files [list \
-        $rtl_dir/CoralNPUChiselSubsystemHighmem.sv \
+        $rtl_dir/CoralNPUChiselSubsystem_ITCM64KB_DTCM1024KB.sv \
         $top_rtl_dir/top_coralnpu_soc.sv \
         $top_rtl_dir/uart_rx.sv \
         $top_rtl_dir/uart_tx.sv \
