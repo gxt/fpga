@@ -31,8 +31,9 @@
 ## 关键发现/坑
 1. **wfi 类用例**（rvv_add.S 等汇编）用 `wfi` 结束（无 HALTED）——不能用 HALTED 判定，需 smoke
 2. **reset 释放后核立即运行**（占用 TCM 仲裁）→ 加载下个程序卡 → 改"加载时保持复位"
-3. **wfi 类用例后核时钟门控**，任何 host 写卡（需重烧恢复）——**wfi 类连续评测受限**
-4. matmul（HALTED 类）连续评测可行（return 0 → mpause）
+3. **wfi 类用例后核时钟门控**（cg disable，CoreAxi L109）→ host 写卡
+4. **wfi 唤醒方案（已验证）**：host 写 CLINT MTIMECMP（0x02004000，触发 timer_irq）→ 核时钟恢复 → host 写正常 → **wfi 类连续评测可行**（混合批量 6 个全 PASS）
+5. matmul（HALTED 类）连续评测可行（return 0 → mpause）
 
 ## 遗留问题
 - wfi 类（598 个）通过性：待决策（cocotb 已验证 / 上板抽样每用例重烧）
