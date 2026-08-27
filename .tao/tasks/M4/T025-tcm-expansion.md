@@ -25,9 +25,17 @@ SoC 切 highmem 布局（DTCM 1M @0x100000），评测 7 个无 DDR 超限用例
 | # | 修改 | 内容 |
 | --- | --- | --- |
 | 1 | fork SoCChiselConfig | `itcmSizeKBytes=1024, dtcmSizeKBytes=1024`（1M/1M）→ 自动 highmem 布局 |
-| 2 | 评测框架 bench_rvv.py | CSR 基址参数化：default 0x30008 ↔ highmem 0x200008（CTRL/STATUS/HALTED）+ DTCM 段判断 0x10000-0x18000 → 0x100000 |
-| 3 | 生成 SV + 综合 | build_top（RVV 宏 VLEN_128/ZVE32F_ON/TB_SUPPORT、20MHz）；route ~3.7h 长任务 |
-| 4 | 上板评测 | 只跑 7 个无 DDR 用例（新增 cfg：elite list） |
+| 2 | 评测框架 bench_rvv.py | CSR 基址：0x30000/0x30008 → **0x200000/0x200008**（highmem 布局，chip_nexus 一致）；DTCM 段判断 0x10000-0x18000 → 0x100000 |
+| 3 | 评测框架加载前清内存 | 对齐 chip_nexus `sram_clear()`：DTCM 1M 的 bss 区（如 rms_norm 877K）需加载前清零 |
+| 4 | 生成 SV + 综合 | build_top（RVV 宏 VLEN_128/ZVE32F_ON/TB_SUPPORT、20MHz）；route ~3.7h 长任务 |
+| 5 | 上板评测 | 只跑 7 个无 DDR 用例（新增 cfg：elite list） |
+
+## 与 chip_nexus 对齐确认（2026-08-26 查证）
+
+- **核配置 1M/1M**：chip_nexus fpga/BUILD L202-203 `dtcm/itcm_size_kbytes=1024` ✓
+- **CSR 基址 0x200000**：fpga/sw/flash_tool_ftdi.py L73 `csr_base_addr=0x200000  # Required highmem` ✓；内部偏移固定（+0 CTRL/clock gate+reset、+4 PC、+8 STATUS）——评测框架 0x30008（default 基址+8）→ 0x200008
+- **bss 清零**：上游加载 ELF 前 `sram_clear()`（fpga/main.cc L48）——加载器清全部内存，评测框架需对齐
+- **Xbar 窗口**：CrossbarConfig(itcm,dtcm) 自动生成（SoCChiselConfig L139）——chip_nexus 1M/1M 已验证，无需自研
 
 ## 风险/注意
 - 改 SoC 配置 = 新布局（highmem）——**与 T024 的 default SoC 是两套独立 bit**，不冲突
