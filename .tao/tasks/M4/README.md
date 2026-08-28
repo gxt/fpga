@@ -17,7 +17,8 @@
 | --- | --- | --- |
 | T025 | TCM 扩容 + CSR 适配：SoC 切 highmem 布局（64K/1M）→ 评测 7 个无 DDR 用例（gemma 3 + highmem 4） | 进行中（route 拥塞攻坚） |
 | T026 | SPI 加载（方案 B：host 实时 SPI 灌入）：spi2tlul → Xbar → 内存，大用例加载 15min→秒级 | 待开始 |
-| T027 | DDR 增加：上游规划（ddr_ctrl/ddr_mem + clockDomain=ddr）+ MIG + TLUL2Axi → 评测 8 个 DDR 用例 | 待开始 |
+| T027 | DDR 通路增加 + 验证：ddr_ctrl/ddr_mem + MIG + TLUL2Axi（CDC 复用 async 机制）→ xsim/上板验证 | 待开始 |
+| T028 | DDR 用例评测 + **全面评测**：8 个 DDR 用例 + 全量 621 回归（默认 606 + 超限 15） | 待开始 |
 
 ## 15 超限用例分布
 
