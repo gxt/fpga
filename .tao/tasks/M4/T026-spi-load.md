@@ -4,11 +4,17 @@
 host 经 SPI 线**流式加载** ELF 到内存（spi2tlul → Xbar → DDR/TCM），大用例加载从 UART 的 15min 降到秒级。
 
 ## 背景（已查证）
-- **方案 B 无 4MB 限制**：数据流式直灌（不经板载 W25Q32FV flash），容量只受内存 + 传输时间
+- **方案 B 无 4MB 限制**：数据流式直灌（不经板载 W25Q32FV flash，flash 仅 4MB 装不下 10MB 用例），容量只受内存 + 传输时间
 - **SPI 无多时钟域**：chip_nexus SPI 经 `io_external_ports_spim_*`（main 域），外部 SCLK 由 SPI 模块内部采样——无需 async/CDC
 - **上游已有**：`spi2tlul`（HostConfig，TL 主机桥）+ `spi_master`（0x40020000）+ `spi_master_flash`（0x40070000）——spi2tlul 连接 `coralnpu_device/sram/ddr_ctrl/ddr_mem`
+- **spi2tlul 未实例化**：chisel SoC 只有 HostConfig 声明，无 `new Spi2TLUL`——**预留未完成**，T026 需接入
+- **两个版本**：
+  - **V1**（Spi2TLUL）：纯协议桥，SPI 数据直接转 TL 写——**无 DMA**，适合方案 B 流式
+  - **V2**（Spi2TLULV2）：DMA 驱动（DmaDesc/DmaEngineRegs：dma_addr/dma_len）——**内置 DMA**，适合指定目标地址的批量加载
+- **DMA 非必需**：方案 B 流式直写用 V1 即可；V2 才带 DMA（无需额外加 DMA 模块）
 - 速度：SPI 50MHz ≈ 10MB/1.6s（vs UART 115200 的 15min，快 ~500 倍）
 - **依赖**：加载到 DDR 需 T027（先验证 TCM/SRAM 通路）
+- **启动对比**：模式 A（板载 flash W25Q32FV）有 4MB 限制，模式 B 无——选方案 B
 
 ## 工作清单
 
@@ -22,6 +28,7 @@ host 经 SPI 线**流式加载** ELF 到内存（spi2tlul → Xbar → DDR/TCM�
 
 ### ② 接入（fork/主仓库）
 - CrossbarConfig：恢复 `spi2tlul`（HostConfig）+ `spi_master`/`spi_master_flash`（DeviceConfig）+ connections（spi2tlul → coralnpu_device/sram/...）
+- **选版本**：方案 B 流式 → **V1（Spi2TLUL 纯桥）**；需指定目标地址批量加载 → V2（含 DMA）
 - top：spi2tlul 桥 + chip_nexus SPI 端口（spim_sclk_o/spim_csb_o/spim_mosi_o/spim_miso_i）
 - **可选**：spi2tlul → ddr_mem（大用例，依赖 T027）
 
