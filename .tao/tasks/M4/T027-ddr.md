@@ -1,4 +1,4 @@
-# T026: DDR 增加（评测 8 个 DDR 超限用例）
+# T027: DDR 增加（评测 8 个 DDR 超限用例）
 
 ## 目标
 SoC 增加 DDR 通路（0x80000000），评测 8 个 gemma DDR 用例（matmul/attention 大算子）。
