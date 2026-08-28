@@ -29,9 +29,11 @@ if {$rtl_dir eq ""} { error "缺少 rtl_dir 参数" }
 if {$top_rtl_dir eq ""} { error "缺少 top_rtl_dir 参数" }
 if {$xdc_dir eq ""} { error "缺少 xdc_dir 参数" }
 if {$mode eq ""} { set mode "proj" }
+set directive [lindex $argv 6]
+if {$directive eq ""} { set directive "Default" }
 
 file mkdir $work_dir
-puts "==> T010 build: part=$part top=$top work=$work_dir mode=$mode"
+puts "==> T010 build: part=$part top=$top work=$work_dir mode=$mode directive=$directive"
 puts "==> rtl_dir=$rtl_dir"
 puts "==> top_rtl_dir=$top_rtl_dir"
 puts "==> xdc_dir=$xdc_dir"
@@ -80,12 +82,18 @@ if {$top eq "top_coralnpu_soc"} {
 } else {
     synth_design -top $top -part $part
 }
+write_checkpoint -force $work_dir/post_synth.dcp
 
-# ---- 实现（中间阶段报告/checkpoint 默认不产出，需要时从 post_route.dcp 重生成） ----
+# ---- 实现 ----
 opt_design
 place_design
 phys_opt_design -hold_fix
-route_design
+write_checkpoint -force $work_dir/post_place.dcp
+if {$directive eq "Default"} {
+    route_design
+} else {
+    route_design -directive $directive
+}
 report_utilization    -file $work_dir/utilization_route.rpt
 report_timing_summary -file $work_dir/timing_route.rpt
 write_checkpoint -force $work_dir/post_route.dcp
