@@ -24,10 +24,17 @@ EXCLUDE_MID=(
   --exclude 'xsim.dir'
 )
 
+# 同步前先让 202 拉主仓库（synth/tcl/rtl 等 git 文件需最新，workspace 同步才一致）
+sync_git() {
+  echo "==> 202 主仓库 git pull（synth/tcl/rtl 等）..."
+  ssh $HOST "cd ~/fpga && git pull 2>&1 | tail -3"
+}
+
 case "$1" in
   push)
     T="$2"; [ -z "$T" ] && { echo "用法: $0 push <task-subtask>"; exit 1; }
     echo "==> push 201→202: $T（working.sh + SV 输入）"
+    sync_git
     rsync -av --delete "${EXCLUDE_MID[@]}" \
       --exclude 'working.log' --exclude '*.rpt' --exclude '*.bit' --exclude '*.bin' --exclude '*.dcp' \
       ~/fpga/workspace/$T/ $HOST:~/fpga/workspace/$T/
@@ -35,6 +42,7 @@ case "$1" in
   pull)
     T="$2"; [ -z "$T" ] && { echo "用法: $0 pull <task-subtask>"; exit 1; }
     echo "==> pull 202→201: $T（log + 报告 + bit 镜像）"
+    sync_git
     mkdir -p ~/fpga/workspace/$T
     rsync -av "${EXCLUDE_MID[@]}" \
       $HOST:~/fpga/workspace/$T/ ~/fpga/workspace/$T/
