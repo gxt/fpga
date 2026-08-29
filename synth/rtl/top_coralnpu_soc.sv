@@ -222,7 +222,7 @@ module top_coralnpu_soc #(
     logic [7:0] gpio_o;
 
     // ==================== CoralNPUChiselSubsystem（64K/1M TCM） ====================
-    CoralNPUChiselSubsystem_ITCM64KB_DTCM1024KB u_soc (
+    CoralNPUChiselSubsystem_ITCM8KB_DTCM1024KB u_soc (
         .io_clk_i(clk_core),
         .io_rst_ni(rst_n),
         // ---- uart_host AXI（host_cmd_fsm → Axi2TLUL → Xbar） ----
