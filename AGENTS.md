@@ -9,13 +9,17 @@
 ### 1. bazel / vivado 命令由用户单独执行
 
 - **所有 bazel（构建、生成 SV）与 vivado（综合、仿真、烧录）相关命令，由用户在 terminal 单独执行**
-- **脚本文件规范**：我在执行地机器的 `workspace/<task>-<subtask>/` 目录下生成脚本文件 **`working.sh`**，log 统一为 **`working.log`**（重定向在脚本内完成）
-- 用户执行：`bash ~/fpga/workspace/<task>-<subtask>/working.sh`（201 与 202 各自在对应机器的 `~/fpga/workspace/<task>-<subtask>/` 下运行）
-- **生成 working.sh 时必须展示其内容**给用户（用户可确认命令无误）
-- **working.sh 不依赖运行时路径**：一律用绝对路径（`~/fpga/...`），不依赖执行时的 cwd
+- **脚本文件规范**：我在执行地机器的 `workspace/<task>-<subtask>/` 目录下生成脚本文件 **`<phase>-<NN>.sh`**，log 统一为 **`<phase>-<NN>.log`**（重定向在脚本内完成）
+  - `phase`：`working`（综合/实现/仿真主流程）、`reroute`（重新实现/再布线）、`check`（诊断/查询）
+  - `NN`：两位序号，**同 phase 内递增**（01、02、…），同目录内脚本+log 名一一对应
+  - 示例：`working-01.sh`+`working-01.log`（第 1 轮综合）、`working-02.sh`（第 2 轮换 directive）、`reroute-01.sh`（从 post_synth 重 place/route）
+  - **同目录不覆盖历史**：每次调整新建序号，脚本/日志保留可追溯
+- 用户执行：`bash ~/fpga/workspace/<task>-<subtask>/<phase>-<NN>.sh`（201 与 202 各自在对应机器的 `~/fpga/workspace/<task>-<subtask>/` 下运行）
+- **生成/修改脚本时必须展示其内容**给用户（用户可确认命令无误）
+- **脚本不依赖运行时路径**：一律用绝对路径（`~/fpga/...`），不依赖执行时的 cwd
 - 执行完成后**用户通知我**，我读取 `working.log` 做分析
 - 我的职责：
-  1. 生成 `working.sh`（含要执行的命令 + log 重定向 + 预期产出注释，清晰、单条可读）
+  1. 生成 `<phase>-<NN>.sh`（含要执行的命令 + log 重定向 + 预期产出注释，清晰、单条可读）
   2. 用户执行后，读取 `working.log` 分析/诊断
   3. 给出下一步建议
 - **禁止**自行 ssh 到 202 直接执行 bazel/vivado 命令
@@ -85,7 +89,7 @@ workspace/
 
 1. **git 仓库（主通道）**：master 仅 201 提交。**201 提交后 202 `git pull` 同步**（synth 的 rtl/xdc/tcl/tb 全部 git 管理，202 靠 git pull 获取，**不再用 push synth**——避免 rsync 覆盖致 git 状态冲突）
 2. **RTL 产物**：核 SV 有更新时 `sync.sh push rtl <key>`（bazel 产物非 git，覆盖同名文件）
-3. **workspace working.sh**：agent 生成的脚本需 rsync/scp 到执行地机器（workspace 是本地目录，不走 git）
+3. **workspace 脚本**：agent 生成的 `<phase>-<NN>.sh` 需 rsync/scp 到执行地机器（workspace 是本地目录，不走 git）
 4. **git pull 冲突处理**：若 202 报"local changes would be overwritten"，先 `git checkout -- <文件>` 丢弃本地（本地改动来自旧版 push synth 残留或与提交一致的内容），再 pull
 
 （目录重组过程中此结构会随改动更新）
