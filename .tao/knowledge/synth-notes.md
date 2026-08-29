@@ -448,3 +448,54 @@ Clock Path Skew +2.676ns (DCD 0.629 - SCD -1.405 - CPR 0.642)
 - **结论**：仿真（50MHz/40MHz）均正常，上板卡为**综合后/物理层时序问题**（仿真不可复现）
 - 排除：速度/缓冲、burst 数据时序、时钟门控、40MHz 频率
 - **下一步**：需上板 ILA 探针诊断（host FSM 状态 + AXI B 信号），或接受 T015 阻塞、转向其他任务
+
+## T025：RVV SoC route 拥塞攻坚（64K/1M → 8K/1M，xc7v2000tflg1925-1）
+
+### 问题：route_design 拥塞失败
+
+- **现象**：`Route 35-162` 大量信号 `failed to route due to routing congestion`，route 5-6h 后失败
+- **拥塞区域**：全部集中在 `rvv_core/coreAxi/core/score/lsu/rs/`（deqPtr_reg/DI/state_cells_rowAddr/buffer_data——LSU 保留站逻辑）
+- **根因**：**TCM BRAM 阵列挤压 LSU 布线通道**（TCM 越大越严重）
+
+### 尝试与结果（逐步收敛）
+
+| 配置 | place | route | 拥塞信号 |
+| --- | --- | --- | --- |
+| 1M/1M | Default | Default | **23087** |
+| 64K/1M | Default | Default | 1712 |
+| 64K/1M | Default | AggressiveExplore | 1410 |
+| 64K/1M | Explore | Default | 1928 |
+| **8K/1M** | Default | Default | **待测**（ITCM 全 LUTRAM） |
+
+**关键**：ITCM 1M→64K 改善 14 倍（23087→1712）→ 证明 TCM BRAM 是主因。**ITCM 8K 用 LUTRAM（不占 BRAM）**，彻底释放 → 预期根治。
+
+### 7 系列（Kintex-7）directive 限制表（Vivado 2025.1 实测）
+
+| directive | route | place | 说明 |
+| --- | --- | --- | --- |
+| Explore | ✅ | ✅ | |
+| AggressiveExplore | ✅ | ❌ `not a recognized directive` | place 仅 UltraScale+ |
+| AlternateCLBRouting | ❌ UltraScale only | - | |
+| `-subdirective ReduceCongestion` | - | ❌ `not supported for part` | 仅 UltraScale+ |
+| RuntimeOptimized / Quick | ✅ | ✅ | |
+
+**7 系列可用**：place = Default/Explore/RuntimeOptimized/Quick；route = Default/Explore/AggressiveExplore/Quick/RuntimeOptimized
+
+### 中间 checkpoint 复用（省时关键）
+
+- build_top.tcl 加 `post_synth.dcp`（synth 后）+ `post_place.dcp`（place 后）
+- route 失败后从 post_synth.dcp 重跑 place/route（`re_place_route.tcl`）——**省重新综合 ~6h**
+- Vivado 2025.1 实测：open_checkpoint 恢复约束完整（时钟 3、顶层正确）
+
+### 脚本/命令坑
+
+- `-source` 路径：git 文件（synth/tcl）需 202 先 git pull；用 workspace 路径（scp 直传）不依赖 pull
+- open_checkpoint 模式**无 project**——不要 `close_project`（报 No projects are open）
+- `report_timing_summary -no_display` **无效选项**（Vivado 2025.1）
+- place/route directive 用 `-directive <name>` 传参（build_top 第 7 参、re_place_route.tcl 参数化）
+
+### 结论
+
+- **拥塞根治方向 = 减小 TCM BRAM 占用**（ITCM 越小越好，8K 用 LUTRAM）
+- route directive（AggressiveExplore）只能缓解（1410），无法根治密度问题
+- 7 系列无 ReduceCongestion/AggressiveExplore place——布局优化手段有限
