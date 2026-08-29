@@ -17,6 +17,10 @@ if {$route_directive eq ""} { set route_directive "Default" }
 
 puts "==> re-place+route: work=$work_dir place=$place_directive route=$route_directive"
 open_checkpoint $work_dir/post_synth.dcp
+# --- 验证 open_checkpoint 后约束完整性（时钟/时序） ---
+puts "==> 验证: 时钟数=[llength [get_clocks -quiet]] 顶层=[get_property TOP [current_design]]"
+set wns_before [get_property SLACK [report_timing_summary -no_display -quiet] 2>/dev/null]
+puts "==> 验证: 综合后 WNS=$wns_before"
 if {$place_directive eq "Default"} {
     place_design
 } else {
@@ -33,4 +37,3 @@ report_utilization    -file $work_dir/utilization_rsc.rpt
 report_timing_summary -file $work_dir/timing_rsc.rpt
 write_bitstream -force -bin_file $work_dir/top_coralnpu_rsc.bit
 puts "==> re-place+route DONE: $work_dir/top_coralnpu_rsc.bit"
-close_project
