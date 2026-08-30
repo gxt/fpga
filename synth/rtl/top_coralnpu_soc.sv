@@ -9,7 +9,7 @@
 //   LED：led_halted/led_fault/led_locked（测试区）+ gpio_led[2:0]（小板 J8，host L 命令）
 // =============================================================================
 module top_coralnpu_soc #(
-    parameter int  CORE_CLK_HZ = 20_000_000,    // MMCM 输出（20MHz：时序完全收敛，M3 默认）
+    parameter int  CORE_CLK_HZ = 10_000_000,    // MMCM 输出（10MHz：T025 降频，20MHz 时序 -17ns 违例）
     parameter int  BAUD        = 115200,
     parameter bit  USE_DIFF_CLK = 1'b1,
     parameter bit  USE_MMCM     = 1'b1
@@ -48,10 +48,10 @@ module top_coralnpu_soc #(
     if (USE_MMCM) begin : g_mmcm
         MMCME2_BASE #(
             .BANDWIDTH          ("OPTIMIZED"),
-            .CLKFBOUT_MULT_F    (12.0),             // 100MHz×12/1/60 = 20MHz
+            .CLKFBOUT_MULT_F    (12.0),             // 100MHz×12/1/120 = 10MHz（T025 降频：20MHz 时序 -17ns 违例）
             .CLKFBOUT_PHASE     (0.0),
             .CLKIN1_PERIOD      (10.0),
-            .CLKOUT0_DIVIDE_F   (60.0),
+            .CLKOUT0_DIVIDE_F   (120.0),
             .CLKOUT0_DUTY_CYCLE (0.5),
             .CLKOUT0_PHASE      (0.0),
             .CLKOUT1_DIVIDE     (1.0),
