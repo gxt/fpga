@@ -94,6 +94,8 @@ if {$directive eq "Default"} {
 } else {
     route_design -directive $directive
 }
+# route 后 phys_opt：真实布线时序修 hold（place 后 phys_opt 用估计时序修不干净）
+phys_opt_design -hold_fix
 report_utilization    -file $work_dir/utilization_route.rpt
 report_timing_summary -file $work_dir/timing_route.rpt
 write_checkpoint -force $work_dir/post_route.dcp
