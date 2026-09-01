@@ -15,6 +15,11 @@ create_clock -period 10.000 -name clk_osc -waveform {0 5.000} [get_ports {clk_p}
 set_property -dict {PACKAGE_PIN L4 IOSTANDARD LVDS} [get_ports {clk_p}]
 set_property -dict {PACKAGE_PIN L3 IOSTANDARD LVDS} [get_ports {clk_n}]
 
+# T025: 约束比硬件严——MMCM 硬件 10MHz（DIVIDE 120），约束覆盖为 20MHz：
+#   place 按 20MHz 时序驱动 → 布局紧凑（20MHz 布局 0 拥塞已验证）
+#   硬件实际 10MHz → 路径 67ns < 100ns → 上板收敛
+create_clock -period 50.000 -name clk_mmcm_out [get_pins {g_mmcm/MMCME2_BASE/CLKOUT0}]
+
 # -----------------------------------------------------------------------------
 # 复位按钮 SW1 —— AP31，1.8V；默认高，按下为低
 # （板卡已有外部上拉，内部上拉仅为冗余保险）
