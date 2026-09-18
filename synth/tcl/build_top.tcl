@@ -79,6 +79,11 @@ if {$mode eq "proj"} {
 # `define 不跨文件，须 synth_design 注入（T017 经验）。
 if {$top eq "top_coralnpu_soc"} {
     synth_design -top $top -part $part -verilog_define {VLEN_128 ZVE32F_ON TB_SUPPORT}
+    # T025 方案A：借鉴上游 vivado_pre_opt_hooks.tcl——LSU 扇出专门处理
+    #   deqPtr_reg MAX_FANOUT 256（fo=63951 分解）+ slot MUXF_REMAP
+    #   上游官方针对同一 LSU 扇出问题的约束
+    catch { set_property MAX_FANOUT 256 [get_cells -hierarchical -filter {NAME =~ *score/lsu/rs/deqPtr_reg*}] }
+    catch { set_property MUXF_REMAP 1   [get_cells -hierarchical -filter {NAME =~ *score/lsu/slot*}] }
 } else {
     synth_design -top $top -part $part
 }
