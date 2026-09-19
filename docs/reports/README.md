@@ -1,30 +1,33 @@
-# coralnpu 汇报材料（PPT）
+# coralnpu 汇报材料
 
-coralnpu RISC-V NPU 上板验证与性能评估汇报材料（25 页）。
+| 文件 | 说明 |
+| --- | --- |
+| `coralnpu-fpga-report-202608.md` | M3 完整技术报告（`##` 章节格式，**非 PPT 源**） |
+| `coralnpu-fpga-report-202609.md` | **PPT 内容源**（`#` 分页格式，25 页） |
 
-**内容源为 Markdown**，经转换器生成 python-pptx 脚本，再生成 PPTX——日常只需编辑 `deck.md`。
-
-## 工作流
+## 工作流（PPT）
 
 ```bash
-# 1. 编辑内容（Markdown）
-vim docs/reports/deck.md
+# 1. 编辑内容（Markdown，需 # 分页格式）
+vim docs/reports/coralnpu-fpga-report-202609.md
 
 # 2. 一键生成 PPTX（仓库根目录执行）
 bash scripts/gen-ppt/build.sh
+# 或指定内容源：
+bash scripts/gen-ppt/build.sh coralnpu-fpga-report-202609.md
 ```
 
-产物：**`.work/ppt/coralnpu-report.pptx`**（`.work/` 不入 git）
+产物：**`.work/ppt/coralnpu-fpga-report-202609.pptx`**（`.work/` 不入 git）
 
-生成流程（两步）：
+生成流程：
 ```
-docs/reports/deck.md
+docs/reports/<内容源>.md
     │  scripts/gen-ppt/md2ppt.py
     ▼
-scripts/gen-ppt/gen.py（自动生成，勿改）
+.work/ppt/gen.py（自动生成）
     │  执行
     ▼
-.work/ppt/coralnpu-report.pptx
+.work/ppt/<内容源同名>.pptx
 ```
 
 ## 环境准备（一次性）
@@ -42,11 +45,11 @@ python3 -m venv ~/.local/venv/ppt-env
 
 | 文件 | 用途 | 是否常改 |
 | --- | --- | --- |
-| **`docs/reports/deck.md`** | **内容源**（Markdown：YAML 封面/图标注/表格/要点） | ✅ 日常改这个 |
+| **`docs/reports/coralnpu-fpga-report-202609.md`** | **PPT 内容源**（`#` 分页 + 图标注/表格/要点） | ✅ 日常改这个 |
 | `scripts/gen-ppt/md2ppt.py` | 转换器（含 11 张图库、字号/布局逻辑） | 改样式/图时 |
 | `scripts/gen-ppt/build.sh` | 一键生成脚本 | 否 |
-| `scripts/gen-ppt/gen.py` | 自动生成的 py 脚本（勿改，已 gitignore） | 否（产物） |
-| **`.work/ppt/coralnpu-report.pptx`** | **最终 PPT（25 页）** | 产物 |
+| `.work/ppt/gen.py` | 自动生成的 py 脚本（勿改） | 否（产物） |
+| `.work/ppt/*.pptx` | 最终 PPT | 产物 |
 
 ## Markdown 语法约定（md2ppt.py 支持）
 
@@ -58,6 +61,8 @@ python3 -m venv ~/.local/venv/ppt-env
 | `- 要点` | 列表（缩进 2 空格 = 二级） |
 | `\| a \| b \|` | 表格 |
 | `> 文本` | 脚注（佐证，小字） |
+
+**注意**：`#`（一级标题）= 幻灯片分页符；`##` 章节格式的报告不能直接生成 PPT。
 
 ## 预定义图库（11 张，原生矢量形状）
 
@@ -73,5 +78,5 @@ python3 -m venv ~/.local/venv/ppt-env
 
 - 字体：Microsoft YaHei（Windows/WPS 打开正常）
 - PPTX 体积小（~78KB，全矢量无位图）
-- 样式调整（字号/配色）改 `scripts/gen-ppt/md2ppt.py`；内容调整改 `docs/reports/deck.md`
+- 样式调整（字号/配色）改 `scripts/gen-ppt/md2ppt.py`；内容调整改内容源 md
 - 布局校验：生成后可用脚本检查形状是否越界（页面高 7.5"，内容需 < 7.45"）
