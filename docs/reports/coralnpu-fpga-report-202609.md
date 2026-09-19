@@ -20,16 +20,16 @@ date: "2026年9月"
 
 | 里程碑 | 内容 | 状态 |
 |---|---|---|
-| **M1** | 上板闭环（UART 加载→执行→回读） | 完成 |
-| **M2** | EDA 流程梳理（20MHz 时序收敛） | 完成 |
-| **M3** | 完整 SoC + 606 用例评测（100% 通过） | 完成 |
+| **M1** | 从零到上板闭环（T001-T014） | 完成 |
+| **M2** | **EDA 流程梳理**（50MHz 学习 → 20MHz 定版；规范/目录/环境） | 完成 |
+| **M3** | 完整 SoC（TL-UL 主干 + RVV）+ 606 用例评测 | 完成 |
 | **M4** | 内存系统扩展（TCM 扩容 / SPI / DDR） | 进行中 |
 
 目标：在 DualV7 上构建含 RVV 向量核的完整 SoC，完成功能验证 + 性能评估
 
 # coralnpu 是什么？
 
-[图:position]
+[图:official_block]
 
 - ML 推理硬件加速器（NPU），Google Research 设计的**开源 IP**（非芯片产品）
 - 目标产品：超低功耗可穿戴设备 SoC（hearables / AR 眼镜 / 智能手表）
@@ -55,13 +55,6 @@ date: "2026年9月"
 # 代码框架总览
 
 [图:framework]
-
-| 层 | 内容 |
-|---|---|
-| 软件层 | litert-micro（conv/dwconv/fc）· examples · tests |
-| 核层 | SCore(rv32im) + RvvCore(RVV) + FloatCore + LSU + L1 Cache + TCM + Debug |
-| 总线层 | TileLink-UL：Xbar · Router · Socket · Arbiter · WidthBridge · FifoAsync |
-| 桥/外设 | Axi2TLUL · TLUL2Axi ‖ clint · plic · gpio · sram · rom · spi · dma |
 
 > 佐证：hdl/chisel/src/{coralnpu,bus,soc} · sw/ · tests/
 
@@ -305,10 +298,10 @@ PC 串口 → UART 收发 → host_cmd_fsm(命令解析) → Axi2TLUL 桥 → Xb
 
 **下一步**
 
-| 任务 | 内容 |
+| 方向 | 内容 |
 |---|---|
-| T026 | SPI 加载（秒级） |
-| T027 | DDR 通路（完整产品形态） |
-| T028 | 8 个 DDR 用例 + 全量 621 评测 |
+| SPI 加载 | 大用例加载提速（秒级） |
+| DDR 通路 | 补全产品形态（大模型内存） |
+| 全面评测 | 8 个 DDR 用例 + 全量 621 回归 |
 
 > 产品形态：TCM（1M）+ DDR（2GB）补齐后，可支撑 MobileNet/gemma 级模型
