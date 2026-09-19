@@ -36,7 +36,7 @@ date: "2026年9月"
 - 三组件融合设计：**matrix（矩阵）+ vector（SIMD）+ scalar（标量）**
 - 官方定位："hardware accelerator for ML inferencing"
 
-> 佐证：README.md（定位/特性）、doc/overview.md
+> 佐证：coralnpu/README.md（定位/特性）；coralnpu/doc/overview.md（Scalar/Vector/Cache 章节）
 
 # 芯片形态与产品形态
 
@@ -56,7 +56,7 @@ date: "2026年9月"
 
 [图:framework]
 
-> 佐证：hdl/chisel/src/{coralnpu,bus,soc} · sw/ · tests/
+> 佐证：coralnpu/hdl/chisel/src/{coralnpu,bus,soc}、coralnpu/{sw,tests}（源码目录）
 
 # 包含 ①：标量核（Scalar Core）
 
@@ -94,7 +94,7 @@ date: "2026年9月"
 - **FabricArbiter**（TCM 与外部访问仲裁）
 - 外部：SRAM 256K（0x20000000）· ROM · DDR（规划）
 
-> 佐证：L1ICache/L1DCache.scala、BankedItcm/Dtcm.scala、Parameters.scala L165-173
+> 佐证：coralnpu/hdl/chisel/src/coralnpu/{L1ICache,L1DCache,BankedItcm,BankedDtcm,Parameters}.scala（L165-173）
 
 # TCM 容量需求与产品形态影响
 
@@ -109,7 +109,7 @@ date: "2026年9月"
 - TCM 定位 = 高速 scratchpad（确定性延迟），**不是模型存储**
 - 产品影响：TCM 容量 → 片上驻留率 → 性能/功耗/面积权衡
 
-> 佐证：tests/npusim_examples/BUILD L36-37、run_full_mobilenet_v1.cc L53
+> 佐证：coralnpu/tests/npusim_examples/BUILD（L36-37）、run_full_mobilenet_v1.cc（L53）；coralnpu/toolchain/coralnpu_tcm.ld.tpl
 
 # 包含 ④：总线与外设
 
@@ -121,7 +121,7 @@ date: "2026年9月"
 - 组件：Router / Socket1N / SocketM1 / Arbiter / WidthBridge / **FifoAsync（跨时钟）**
 - 桥：Axi2TLUL（host 入口）、TLUL2Axi（核访问外部）
 
-> 佐证：bus/*.scala、soc/{CoralNPUXbar,CrossbarConfig}.scala
+> 佐证：coralnpu/hdl/chisel/src/bus/*.scala；coralnpu/hdl/chisel/src/soc/{CoralNPUXbar,CrossbarConfig}.scala
 
 # 包含 ⑤：软件栈与验证框架
 
@@ -134,7 +134,7 @@ date: "2026年9月"
 | 示例 | hello_world · rvv_add_intrinsic · MobileNet V1 |
 | 验证 | cocotb · npusim · systemc · uvm · vcs_sim · verilator_sim |
 
-> 佐证：toolchain/、sw/opt/litert-micro/、tests/、examples/
+> 佐证：coralnpu/{toolchain,sw/opt/litert-micro,tests,examples}（源码目录）
 
 # 不包含 ①：矩阵计算（关键边界）
 
@@ -193,7 +193,7 @@ date: "2026年9月"
 - **删除**：ISP / DDR / spi2tlul / dma / spi_master(_flash)
 - **理由**：先打通已验证主干（UART 加载 + RVV 核）
 
-> 佐证：fork commit ac01a545（T022 裁剪）、CrossbarConfig.scala
+> 佐证：M3/E1（T022 SoC 裁剪：删 ISP/DDR/SPI/DMA）；coralnpu/hdl/chisel/src/soc/CrossbarConfig.scala
 
 # 集成方法 ②：程序加载通路
 
@@ -207,7 +207,7 @@ PC 串口 → UART 收发 → host_cmd_fsm(命令解析) → Axi2TLUL 桥 → Xb
 - 闭环：加载 → 释放核（S）→ 执行 → HALTED 检测 → 结果回读
 - 加载时核保持复位（CTRL=1），S 命令释放——避免核占用总线
 
-> 佐证：synth/rtl/host_cmd_fsm.sv、fork T022（uart_host Axi2TLUL 桥）
+> 佐证：M3/E1（T022 uart_host Axi2TLUL 桥）；synth/rtl/host_cmd_fsm.sv
 
 # 集成方法 ③：时钟 · 综合流程 · 版本管理
 
@@ -219,7 +219,7 @@ PC 串口 → UART 收发 → host_cmd_fsm(命令解析) → Axi2TLUL 桥 → Xb
 - **版本管理**：fork（gxt/coralnpu）承载 SoC 改动；主仓库管理 synth/xdc/tcl + 任务记录
 - **分工**：201 = 维护/bazel/上板；202 = Vivado 综合/仿真
 
-> 佐证：top_coralnpu_soc.sv、synth/tcl/build_top.tcl、hdl/chisel/src/soc/BUILD
+> 佐证：M2/E3（综合流程）；synth/rtl/top_coralnpu_soc.sv、synth/tcl/build_top.tcl
 
 # 性能评估 ①：方法论
 
@@ -246,7 +246,7 @@ PC 串口 → UART 收发 → host_cmd_fsm(命令解析) → Axi2TLUL 桥 → Xb
 | float_matmul_16x48x16 | f32 | 0.47 | 4 | 11.8% |
 | rvv_bf16_matmul | bf16 | 0.56 | 8 | 7.0% |
 
-> 佐证：docs/coralnpu-fpga-report.md §6.1
+> 佐证：M3/T024（matmul 性能实测，8 个用例）
 
 # 性能评估 ③：606 用例评测与不足
 
@@ -255,7 +255,7 @@ PC 串口 → UART 收发 → host_cmd_fsm(命令解析) → Axi2TLUL 桥 → Xb
 - **不足（效率 7-25%）**：① vle/vse 装载开销 ② 循环控制开销 ③ 单向量寄存器（m1）流水利用率低 ④ 无矩阵 MAC 硬件
 - **改进方向**：指令调度/展开（optimized 版已达 25.3%）、多发射、数据复用、未来矩阵扩展
 
-> 佐证：docs/coralnpu-fpga-report.md §5.1/§6.2
+> 佐证：M3/T024（606 用例评测 + 性能分析）
 
 # FPGA 资源利用率（T023，20MHz）
 
@@ -271,7 +271,7 @@ PC 串口 → UART 收发 → host_cmd_fsm(命令解析) → Axi2TLUL 桥 → Xb
 - LUT 38.24% 主要来自 **RVV 向量核逻辑**；寄存器利用率低（2.9%）说明逻辑以组合为主
 - **BRAM 5.73%**（TCM + SRAM 256K）——**资源余量充足**，是 M4 TCM 扩容的依据；20MHz 时序收敛（标量 +15.410 / RVV +0.754）
 
-> 佐证：docs/coralnpu-fpga-report.md §4、workspace/T023-e3-synth/utilization_route.rpt
+> 佐证：M3/E3-E6（T023 综合）；workspace/T023-e3-synth/utilization_route.rpt
 
 # 当前挑战：T025（TCM 扩容）为何耗时
 
@@ -284,7 +284,7 @@ PC 串口 → UART 收发 → host_cmd_fsm(命令解析) → Axi2TLUL 桥 → Xb
 | 为何久 ③ | 未及早对照上游：上游早有 MAX_FANOUT 256 针对同一问题 |
 | 方案 A | 回 20MHz（好布局）+ 借鉴上游约束（MAX_FANOUT 256 + MUXF_REMAP） |
 
-> 佐证：timing_route.rpt、workspace 日志、coralnpu/fpga/vivado_pre_opt_hooks.tcl
+> 佐证：M4/T025（TCM 扩容攻坚）；coralnpu/fpga/vivado_pre_opt_hooks.tcl（上游约束）
 
 # 结论与下一步
 
