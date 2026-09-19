@@ -111,22 +111,22 @@ def draw_loadpath(s):
 FIGURES['flow'] = '''
 def draw_flow(s):
     box(s, '100MHz 差分', 0.7, 1.35, 2.6, 0.6, fs=14)
-    arrow(s, 3.35, 1.55, 0.4)
+    arrow(s, 3.35, 1.57, 0.4)
     box(s, 'MMCM ×12/60', 3.85, 1.35, 2.6, 0.6, fill=RGBColor(0xD6,0xE4,0xF5), fs=14)
-    arrow(s, 6.5, 1.55, 0.4)
+    arrow(s, 6.5, 1.57, 0.4)
     box(s, '20MHz 核时钟（单时钟域）', 7.0, 1.35, 5.6, 0.6, fill=RGBColor(0xD5,0xEF,0xDC), fs=14)
     flow = [('Chisel RTL', 0.7), ('bazel 生成 SV', 3.3), ('Vivado 综合', 5.9),
             ('bitstream', 8.5), ('上板', 10.9)]
     for i, (t, x) in enumerate(flow):
-        box(s, t, x, 2.15, 2.3, 0.75, fs=14)
+        box(s, t, x, 2.3, 2.3, 0.75, fs=14)
         if i < 4:
-            arrow(s, x + 2.2, 2.48, 0.12)
+            arrow(s, x + 2.35, 2.6, 0.12)
 '''
 
 FIGURES['soc_arch'] = '''
 def draw_soc_arch(s):
     # 核心 = rvv_core（居中放大）
-    box(s, 'rvv_core (CoreTlul)\\n标量 + RVV + FPU + LSU + Cache + TCM', 4.2, 1.3, 4.9, 1.15,
+    box(s, 'rvv_core (CoreTlul)\\n标量 + RVV + FPU + LSU + Cache', 4.2, 1.3, 4.9, 1.15,
         fill=DARK, tc=WHITE, fs=14, bold=True)
     # 左：加载通路（辅助）
     box(s, 'PC 串口', 0.6, 1.55, 1.3, 0.6, fs=14)
@@ -146,7 +146,7 @@ def draw_soc_arch(s):
 FIGURES['official_block'] = '''
 def draw_official_block(s):
     img = os.path.join(r"__REPO__", 'coralnpu/doc/images/arch_data_flow.png')
-    s.shapes.add_picture(img, Inches(1.6), Inches(1.3), height=Inches(2.5))
+    s.shapes.add_picture(img, Inches(3.3), Inches(1.3), height=Inches(4.5))
 '''
 
 # =====================================================================
@@ -232,12 +232,16 @@ def quote(s, text, top, size=14):
     add_runs(p, text, size, GRAY)
     return tb
 
-def table(s, headers, rows, left=0.6, top=1.25, width=12.1, height=5.0, fs=14, first_col_w=None, rest_col_w=None):
+def table(s, headers, rows, left=0.6, top=1.25, width=12.1, height=5.0, fs=14, first_col_w=None, rest_col_w=None, colw=None):
     shp = s.shapes.add_table(len(rows) + 1, len(headers), Inches(left), Inches(top),
                              Inches(width), Inches(height))
     tbl = shp.table
     n = len(headers)
-    if first_col_w:
+    if colw:
+        for j, w in enumerate(colw):
+            if j < n:
+                tbl.columns[j].width = Inches(w)
+    elif first_col_w:
         tbl.columns[0].width = Inches(first_col_w)
         rest = rest_col_w if rest_col_w else (width - first_col_w) / (n - 1) if n > 1 else width
         for j in range(1, n):
@@ -413,8 +417,10 @@ for i, t in enumerate([{py_str(core)}, {py_str(platform)}, '', {py_str(date)}]):
                 fs = int(attrs.get('size', 14))
                 first_w = float(attrs['firstcol']) if 'firstcol' in attrs else None
                 rest_w = float(attrs['restcol']) if 'restcol' in attrs else None
+                colw_s = attrs.get('colw')
+                colw = [float(x) for x in colw_s.split(',')] if colw_s else None
                 h = min(0.5 * (rows_n + 1) + 0.2, 5.4)
-                code.append(f'table(s, {py_str(blk[1])}, {py_str(blk[2])}, top={y:.2f}, height={h:.2f}, fs={fs}, first_col_w={first_w}, rest_col_w={rest_w})')
+                code.append(f'table(s, {py_str(blk[1])}, {py_str(blk[2])}, top={y:.2f}, height={h:.2f}, fs={fs}, first_col_w={first_w}, rest_col_w={rest_w}, colw={colw})')
                 y += h + 0.15
             elif kind == 'quote':
                 txt = blk[1]

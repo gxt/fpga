@@ -34,10 +34,9 @@ date: "2026年9月"
 - 目标产品：超低功耗可穿戴设备 SoC（hearables / AR 眼镜 / 智能手表）
 - 三组件融合设计：**matrix（矩阵）+ vector（SIMD）+ scalar（标量）**
 
-> 佐证：coralnpu/README.md（定位/特性）；coralnpu/doc/overview.md（Scalar/Vector/Cache 章节）
-
 # 芯片形态与产品形态
 
+<!-- tbl colw=2.0,10.1 -->
 | 项 | 内容 |
 |---|---|
 | 形态 | 开源 IP 核（供集成），非芯片产品 |
@@ -50,14 +49,30 @@ date: "2026年9月"
 | 目标产品 | 超低功耗可穿戴 SoC |
 | 官方文档 | Architecture Datasheet（developers.google.com/coral） |
 
-# 代码框架总览
+# 代码框架总览（包含 / 不包含）
 
-[图:framework]
+**包含**
 
-> 佐证：coralnpu/hdl/chisel/src/{coralnpu,bus,soc}、coralnpu/{sw,tests}（源码目录）
+<!-- tbl colw=2.2,9.9 -->
+| 类别 | 内容 |
+|---|---|
+| 核 | 标量（rv32im）+ RVV 向量（Zve32x，VLEN=128）+ FPU + LSU + L1 Cache + TCM + Debug |
+| 总线 | TileLink-UL（Xbar / Router / Socket / Arbiter / 异步 FIFO）+ 桥（Axi2TLUL / TLUL2Axi） |
+| 外设 | clint / plic / gpio / sram / rom / spi / dma |
+| 软件 | clang 工具链 · litert-micro（推理算子）· cocotb 等验证框架 |
+
+**不包含**
+
+<!-- tbl colw=2.2,9.9 -->
+| 类别 | 缺失 |
+|---|---|
+| 矩阵计算 | mmac/mred 指令未实现（PE 阵列硬件空置）；文档描述的 outer-product MAC 未落地 |
+| 大内存 | DDR / ISP 通路未完成（io_ddr_mem_axi 悬空）；SPI 加载未实例化 |
+| 系统 | 无 OS / MMU / 多核（裸机单核 RV32）；仅 L1 Cache（无 L2/L3） |
 
 # 包含 ①：标量核（Scalar Core）
 
+<!-- tbl colw=2.0,10.1 -->
 | 特性 | 内容 |
 |---|---|
 | ISA | rv32im（+ Zicsr/Zifencei/Zbb） |
@@ -69,6 +84,7 @@ date: "2026年9月"
 
 # 包含 ②：向量核（RVV / SIMD）
 
+<!-- tbl colw=2.0,10.1 -->
 | 特性 | 内容 |
 |---|---|
 | ISA 扩展 | RV32IMF_Zve32x |
@@ -117,15 +133,9 @@ date: "2026年9月"
 
 [图:swstack]
 
-| 层 | 内容 |
-|---|---|
-| 工具链 | RISC-V clang · crt0 · TCM 链接脚本 |
-| 运行库 | **litert-micro**（conv/depthwise_conv/fully_connected）· rvv_opt.h |
-| 示例 | hello_world · rvv_add_intrinsic · MobileNet V1 |
-| 验证 | cocotb · npusim · systemc · uvm · vcs_sim · verilator_sim |
-
 # 不包含 ①：矩阵计算（关键边界）
 
+<!-- tbl colw=2.0,5.05,5.05 -->
 | 层面 | 文档描述 | 代码实现现状 |
 |---|---|---|
 | 矩阵 MAC | outer-product，256 MACs/cycle | **未实现**（无 VDOT/outer-product 代码） |
@@ -133,10 +143,11 @@ date: "2026年9月"
 | VME (Zvt) | mset* + PE 阵列 | 仅 mset 配置；**mmac/mred 缺失** |
 | 实际矩阵乘 | — | 标准 RVV 软件实现 |
 
-> 结论：文档描述的"硬件矩阵加速"未落地——**实际能力 = 标准 RVV 软件算子**
+> [24] 结论：文档描述的"硬件矩阵加速"未落地——实际能力 = 标准 RVV 软件算子
 
 # 不包含 ②：DDR / ISP 数据通路未完成
 
+<!-- tbl colw=2.0,5.05,5.05 -->
 | 模块 | 规划 | 现状 |
 |---|---|---|
 | DDR | ddr_ctrl + ddr_mem（2GB） | io_ddr_mem_axi **悬空**（无驱动） |
@@ -148,6 +159,7 @@ date: "2026年9月"
 
 # 不包含 ③：OS / MMU / 多核
 
+<!-- tbl colw=2.0,5.05,5.05 -->
 | 项 | 状态 | 说明 |
 |---|---|---|
 | 操作系统 | 无 | run-to-completion |
@@ -157,15 +169,16 @@ date: "2026年9月"
 | 位宽 | RV32 | xlen = 32 |
 | Cache | 仅 L1 | 无 L2/L3 |
 
-> 定位：面向可穿戴的"裸机 NPU"——不追求通用计算能力
+> [24] 定位：面向可穿戴的"裸机 NPU"——不追求通用计算能力
 
 # SoC 整体架构
 
 [图:soc_arch]
 
+<!-- tbl colw=3.0,9.1 -->
 | 模块 | 说明 |
 |---|---|
-| **rvv_core (CoreTlul)** | **核心**：标量 + RVV + FPU + LSU + Cache + TCM |
+| **rvv_core (CoreTlul)** | **核心**：标量 + RVV + FPU + LSU + Cache |
 | CoralNPUXbar | TileLink-UL 连接（路由 + 仲裁） |
 | uart_host | AXI→TL-UL 桥（程序加载/回读） |
 | 外设 | sram 256K、clint、plic、gpio、rom |
@@ -203,6 +216,7 @@ date: "2026年9月"
 
 # 性能评估 ①：评估方案
 
+<!-- tbl size=16 colw=3.0,9.1 -->
 | 要素 | 定义 / 做法 |
 |---|---|
 | 核心指标 | **MACs/Cycle**（每周期乘加次数） |
@@ -211,9 +225,13 @@ date: "2026年9月"
 | 自动分流 | 有周期符号→性能模式；无→smoke 模式 |
 | 评测对象 | 8 个 matmul 用例（int8/f32/bf16） |
 
+- **自动分流**：评测框架按用例类型自动选择判定方式
+- **有周期符号**：程序内定义了 `csr_cycle_count`（可回读执行周期）→ **性能模式**（等 HALTED + 回读周期数）
+- **无周期符号**：仅验证能否正常运行 → **smoke 模式**（加载 + 启动 + 无 fault 即通过）
+
 # 性能评估 ②：实测结果（8 个 MatMul 用例）
 
-<!-- tbl size=16 firstcol=3.4 restcol=1.5 -->
+<!-- tbl size=16 colw=3.4,1.5,2.25,1.5,1.5 -->
 | 用例 | 数据类型 | MACs/Cycle | 理论峰值 | 效率 |
 |---|---|---|---|---|
 | rvv_matmul | int8 | 1.96 | 16 | 12.3% |
@@ -229,8 +247,15 @@ date: "2026年9月"
 
 - **606 用例评测：正常用例 100% 通过**（2 个故障注入测试预期 FAIL）
 - 分类：向量算术 521 + load_store 56 + rvv 19 + ml_ops 8 + rvv_opt 2
-- **不足（效率 7-25%）**：① vle/vse 装载开销 ② 循环控制开销 ③ 单向量寄存器（m1）流水利用率低 ④ 无矩阵 MAC 硬件
-- **改进方向**：指令调度/展开、多发射、数据复用、矩阵扩展
+
+**不足（效率 7-25%）**
+
+- ① vle/vse 装载开销大
+- ② 循环控制开销
+- ③ 单向量寄存器（m1）粒度导致流水利用率低
+- ④ 无矩阵 MAC 硬件（文档描述的加速引擎未实现）
+
+**改进方向**：指令调度/展开、多发射、数据复用、矩阵扩展
 
 # FPGA 资源利用率（T023，20MHz）
 
@@ -242,22 +267,22 @@ date: "2026年9月"
 | DSP48E1 | 153 | — | — |
 | MMCM | 1 | 24 | 4.17% |
 
-- **TCM 容量**：当前 ITCM 8K + DTCM 32K（默认）；M4 扩容到 **8K/1M**（DTCM 1M）
+- **TCM 容量**：当前 ITCM 8K + DTCM 32K（默认）；M4 **拟扩容**到 8K/1M（DTCM 1M）
 - LUT 38.24% 主要来自 RVV 向量核；**BRAM 5.73% 余量充足**，是 TCM 扩容依据
 
 > 佐证：M3/E3-E6（T023 综合）；workspace/T023-e3-synth/utilization_route.rpt
 
-# 当前挑战：TCM 扩容为何耗时
+# 当前挑战：TCM 扩容的尝试
 
-<!-- tbl size=14 -->
+<!-- tbl size=14 colw=0.67,2.52,2.86,0.67,2.52,2.86 -->
 | 轮次 | 配置 | 结果 | 轮次 | 配置 | 结果 |
 |---|---|---|---|---|---|
-| 1 | 1M/1M 默认 | 23087 拥塞 | 7 | 10MHz 重综合 | 4420 |
-| 2 | 1M/1M Aggressive | 1410 | 8 | 10MHz 无 phys_opt | 4420 |
-| 3 | 64K/1M 默认 | 1712 | 9 | 10MHz place Explore | 27739 |
-| 4 | 64K/1M Aggressive | 1410 | 10 | 约束覆盖（pin 错） | 4420 |
-| 5 | 8K/1M 默认 | **通过**（0 拥塞） | 11 | 约束覆盖（pin 修正） | 22331 |
-| 6 | route 后 phys_opt | -17ns | 12 | 方案 A（上游约束） | 验证中 |
+| 1 | 1M/1M 默认 | 23087 信号拥塞 | 7 | 10MHz 重综合 | 4420 信号拥塞 |
+| 2 | 1M/1M Aggressive route | 1410 信号拥塞 | 8 | 10MHz 无 phys_opt | 4420 信号拥塞 |
+| 3 | 64K/1M 默认 | 1712 信号拥塞 | 9 | 10MHz place Explore | 27739 信号拥塞 |
+| 4 | 64K/1M Aggressive route | 1410 信号拥塞 | 10 | 约束覆盖（pin 错） | 4420 信号拥塞 |
+| 5 | 8K/1M 默认 | **通过**（0 拥塞）；时序 -20.7ns | 11 | 约束覆盖（pin 修正） | 22331 信号拥塞 |
+| 6 | route 后 phys_opt | -17ns（仍违例） | 12 | 方案 A（上游约束） | 验证中 |
 
 - **根因**：LSU deqPtr 高扇出（fo=63951）→ 路径 67ns；DTCM BRAM 挤压布局
 - **方案 A**：回 20MHz（好布局）+ 借鉴上游约束（MAX_FANOUT 256 + MUXF_REMAP）
@@ -269,17 +294,17 @@ date: "2026年9月"
 - coralnpu 核功能正确：606 个 RVV 用例正常通过率 100%，上板闭环验证
 - 实际能力 = 标准 RVV + 标量核；文档中的硬件矩阵 MAC 未实现
 - 性能基线已建立（MACs/Cycle 7-25%）
-- TCM 扩容遇到 LSU 扇出时序难题，根因已定位、方案 A 验证中
+
+**TCM 扩容遇到的问题**（M4）
+
+- DTCM 扩到 1M 后，route 阶段出现严重布线拥塞（最高 27739 个信号无法布线）
+- 同时时序违例（WNS -20.7ns）——LSU deqPtr 高扇出（fo=63951，路径 67ns）+ DTCM BRAM 阵列挤压 LSU 布局
+- 拥塞与时序交织：改布局修拥塞→时序变差；降频修时序→布局变差
+- 已尝试 12 轮（累计 ~90 机器小时）；当前方案 A：回 20MHz + 借鉴上游 MAX_FANOUT 约束
 
 **性能优化方向**
 
 - 指令调度/展开（optimized 版已达 25.3%）、多发射、数据复用
 - **自行增加矩阵运算**（实现 mmac 矩阵指令，释放 PE 阵列硬件能力）
 
-**下一步**
-
-| 方向 | 内容 |
-|---|---|
-| SPI 加载 | 大用例加载提速（秒级） |
-| DDR 通路 | 补全产品形态（大模型内存） |
-| 全面评测 | 8 个 DDR 用例 + 全量 621 回归 |
+**下一步**：SPI 加载提速（秒级）→ DDR 通路（补全产品形态）→ 全面评测（8 个 DDR 用例 + 全量 621 回归）
