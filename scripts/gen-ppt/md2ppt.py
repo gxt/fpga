@@ -5,17 +5,18 @@ md2ppt.py —— Markdown → python-pptx 脚本 → PPTX
 
 用法:
     python md2ppt.py <deck.md> [out.pptx]
-流程:
-    <deck.md> ──(本脚本)──> <out 同目录>/gen.py ──(执行)──> <out.pptx>
 
 Markdown 约定:
-    ---           YAML 元数据（title/core/platform/date）→ 封面
-    # 标题        新幻灯片
-    [图:name]     插入预定义矢量图（见 FIGURES）
-    - 要点        列表（缩进 2 空格 = 二级）
-    | a | b |     Markdown 表格
-    > 文本        脚注（小字）
-    支持 **粗体** / *斜体*（渲染为 pptx run，非字面星号）
+    ---            YAML 元数据（title/core/platform/date）→ 封面
+    # 标题         新幻灯片
+    [图:name]      插入预定义矢量图（见 FIGURES）
+    - 要点         列表（缩进 2 空格 = 二级）
+    | a | b |      Markdown 表格
+    > 文本         脚注（小字）；`> [24] 文本` 可指定字号并加粗
+    <!-- tbl size=16 -->   表格前的属性注释（size 字号）
+    支持 **粗体** / *斜体*
+
+字号规范：正文 ≥18，其它（表格/佐证/图）≥14
 """
 import re
 import sys
@@ -24,22 +25,23 @@ import os
 REPO_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..'))
 
 # =====================================================================
-# 图函数库（字号 ≥14；图占上半页，为下方内容留空间）
+# 图函数库（字号 ≥14；图占上半页）
 # =====================================================================
 FIGURES = {}
 
 FIGURES['roadmap'] = '''
 def draw_roadmap(s):
-    ms = [('M1', '上板闭环', '从零到闭环（T001-T014）', GREEN),
-          ('M2', 'EDA 流程梳理', '50MHz 学习 → 20MHz 定版', GREEN),
-          ('M3', '完整 SoC + 评测', 'TL-UL 主干 + RVV + 606 用例', GREEN),
-          ('M4', '内存系统扩展', 'TCM 扩容 / SPI / DDR', ORANGE)]
+    ms = [('M1', '上板闭环', '从零到上板闭环', GREEN),
+          ('M2', '调试流程与环境', '流程/环境/规范落地', GREEN),
+          ('M3', '完整 Core + 测试向量', 'TL-UL 主干 + RVV + 606 用例', GREEN),
+          ('M4', '存储系统扩展', 'TCM 扩容 / SPI / DDR', ORANGE),
+          ('M5', '矩阵计算 + benchmark', '矩阵运算与基准评测', GRAY)]
     for i, (tag, name, desc, col) in enumerate(ms):
-        x = 0.7 + i * 3.15
-        box(s, tag + '  ' + name, x, 1.5, 2.5, 0.6, fill=col, tc=WHITE, fs=14, bold=True)
-        box(s, desc, x, 2.2, 2.5, 0.6, fs=14)
-        if i < 3:
-            arrow(s, x + 2.55, 1.72, 0.55)
+        x = 0.55 + i * 2.5
+        box(s, tag + '\\n' + name, x, 1.45, 2.3, 0.9, fill=col, tc=WHITE, fs=14, bold=True)
+        box(s, desc, x, 2.45, 2.3, 0.75, fs=14)
+        if i < 4:
+            arrow(s, x + 2.35, 1.75, 0.1, h=0.14)
 '''
 
 FIGURES['framework'] = '''
@@ -49,19 +51,20 @@ def draw_framework(s):
               ('总线层', 'TileLink-UL：Xbar · Router · Socket · Arbiter · FifoAsync', RGBColor(0xBF,0xD7,0xEE)),
               ('桥/外设', 'Axi2TLUL · TLUL2Axi ‖ clint · plic · gpio · sram · spi · dma', RGBColor(0xA8,0xCB,0xE8))]
     for i, (name, desc, col) in enumerate(layers):
-        y = 1.3 + i * 0.63
-        box(s, name, 0.6, y, 1.6, 0.56, fill=DARK, tc=WHITE, fs=14, bold=True)
-        box(s, desc, 2.35, y, 10.35, 0.56, fill=col, fs=14)
+        y = 1.3 + i * 0.72
+        box(s, name, 0.5, y, 1.7, 0.65, fill=DARK, tc=WHITE, fs=14, bold=True)
+        box(s, desc, 2.35, y, 10.5, 0.65, fill=col, fs=14)
 '''
 
 FIGURES['storage'] = '''
 def draw_storage(s):
-    box(s, 'L1I Cache 8KB（4-way）', 0.7, 1.35, 3.7, 0.6, fs=14)
-    box(s, 'L1D Cache 16KB（4-way，双 bank）', 4.6, 1.35, 4.4, 0.6, fs=14)
-    box(s, 'L0 I-Cache 1KB（fetch）', 9.2, 1.35, 3.4, 0.6, fs=14)
-    box(s, 'ITCM（可配 8K~1M）', 0.7, 2.15, 5.6, 0.6, fill=RGBColor(0xD6,0xE4,0xF5), fs=14)
-    box(s, 'DTCM（可配 32K~1M）', 6.6, 2.15, 6.0, 0.6, fill=RGBColor(0xD6,0xE4,0xF5), fs=14)
-    box(s, 'FabricArbiter（TCM 与外部访问仲裁）', 2.5, 2.95, 8.3, 0.6, fs=14)
+    # 层次感：越靠近核越快/越小（金字塔收窄）
+    box(s, '核（SCore + RvvCore）', 4.6, 1.25, 4.1, 0.55, fill=DARK, tc=WHITE, fs=14, bold=True)
+    box(s, 'L0 I-Cache 1KB ｜ L1I 8KB ｜ L1D 16KB', 3.4, 1.95, 6.5, 0.55, fill=RGBColor(0xD6,0xE4,0xF5), fs=14)
+    box(s, 'TCM：ITCM（8K~1M）+ DTCM（32K~1M）· 单周期 · FabricArbiter', 2.1, 2.65, 9.1, 0.55, fill=RGBColor(0xBF,0xD7,0xEE), fs=14)
+    box(s, '外部：SRAM 256K（0x20000000）· ROM · DDR（规划，2GB）', 0.8, 3.35, 11.7, 0.55, fill=RGBColor(0xA8,0xCB,0xE8), fs=14)
+    for y in (1.85, 2.55, 3.25):
+        arrow(s, 6.55, y, 0.0, 0.1, shape=MSO_SHAPE.DOWN_ARROW)
 '''
 
 FIGURES['bus'] = '''
@@ -82,9 +85,9 @@ def draw_swstack(s):
           ('示例', 'hello_world · rvv_add_intrinsic · MobileNet V1'),
           ('验证', 'cocotb · npusim · systemc · uvm · vcs_sim · verilator_sim')]
     for i, (name, desc) in enumerate(sw):
-        y = 1.3 + i * 0.63
-        box(s, name, 0.6, y, 1.6, 0.56, fill=DARK, tc=WHITE, fs=14, bold=True)
-        box(s, desc, 2.35, y, 10.35, 0.56, fs=14)
+        y = 1.3 + i * 0.72
+        box(s, name, 0.5, y, 1.7, 0.65, fill=DARK, tc=WHITE, fs=14, bold=True)
+        box(s, desc, 2.35, y, 10.5, 0.65, fs=14)
 '''
 
 FIGURES['trim'] = '''
@@ -120,47 +123,43 @@ def draw_flow(s):
             arrow(s, x + 2.2, 2.48, 0.12)
 '''
 
-FIGURES['nextsteps'] = '''
-def draw_nextsteps(s):
-    nxt = [('SPI 加载', '大用例加载提速（秒级）', 0.7),
-           ('DDR 通路', '补全产品形态（大模型内存）', 4.6),
-           ('全面评测', '8 个 DDR 用例 + 全量 621 回归', 8.5)]
-    for tag, desc, x in nxt:
-        box(s, tag + '\\n' + desc, x, 1.5, 3.7, 0.95, fill=LIGHT, fs=14)
-'''
-
 FIGURES['soc_arch'] = '''
 def draw_soc_arch(s):
-    box(s, 'PC 串口', 0.6, 1.95, 1.4, 0.6, fs=14)
-    arrow(s, 2.05, 2.12, 0.3)
-    box(s, 'host_cmd_fsm\\n+ Axi2TLUL', 2.4, 1.9, 1.9, 0.7, fs=14)
-    arrow(s, 4.35, 2.12, 0.3)
-    box(s, 'CoralNPUXbar\\n(TileLink-UL)', 4.7, 1.8, 2.3, 0.9, fill=DARK, tc=WHITE, fs=14, bold=True)
-    arrow(s, 7.05, 2.12, 0.3)
-    box(s, 'rvv_core (CoreTlul)', 7.4, 1.25, 2.6, 0.55, fs=14)
-    box(s, 'sram 256K', 7.4, 1.9, 2.6, 0.5, fs=14)
-    box(s, 'clint / plic', 7.4, 2.5, 2.6, 0.5, fs=14)
-    box(s, 'gpio / rom', 7.4, 3.1, 2.6, 0.5, fs=14)
-    box(s, 'coralnpu_device\\n(ITCM/DTCM/CSR)', 10.2, 1.25, 2.5, 2.35, fill=RGBColor(0xD6,0xE4,0xF5), fs=14)
+    # 核心 = rvv_core（居中放大）
+    box(s, 'rvv_core (CoreTlul)\\n标量 + RVV + FPU + LSU + Cache + TCM', 4.2, 1.3, 4.9, 1.15,
+        fill=DARK, tc=WHITE, fs=14, bold=True)
+    # 左：加载通路（辅助）
+    box(s, 'PC 串口', 0.6, 1.55, 1.3, 0.6, fs=14)
+    box(s, 'host_cmd_fsm\\n+ Axi2TLUL', 2.05, 1.5, 1.9, 0.7, fs=14)
+    arrow(s, 1.95, 1.82, 0.1)
+    arrow(s, 4.05, 1.82, 0.12)
+    # 右：外设（辅助）
+    box(s, 'sram 256K / rom', 9.3, 1.35, 3.4, 0.5, fs=14)
+    box(s, 'clint / plic', 9.3, 1.95, 3.4, 0.5, fs=14)
+    box(s, 'gpio', 9.3, 2.55, 3.4, 0.5, fs=14)
+    # 下：Xbar（连接，弱化）
+    box(s, 'CoralNPUXbar（TileLink-UL 连接）', 4.2, 2.75, 4.9, 0.5, fill=LIGHT, fs=14)
+    arrow(s, 6.65, 2.5, 0.0, 0.2, shape=MSO_SHAPE.DOWN_ARROW)
+    box(s, 'coralnpu_device（ITCM/DTCM/CSR）', 4.2, 3.45, 4.9, 0.5, fill=RGBColor(0xD6,0xE4,0xF5), fs=14)
 '''
 
 FIGURES['official_block'] = '''
 def draw_official_block(s):
-    img = os.path.join(r"__REPO__", 'coralnpu/doc/images/coralnpu_block.png')
-    s.shapes.add_picture(img, Inches(3.8), Inches(1.35), height=Inches(2.2))
+    img = os.path.join(r"__REPO__", 'coralnpu/doc/images/arch_data_flow.png')
+    s.shapes.add_picture(img, Inches(1.6), Inches(1.3), height=Inches(2.5))
 '''
 
 # =====================================================================
-# 各图底部 y 坐标（图下方内容从此开始）
+# 各图底部 y 坐标
 # =====================================================================
 FIG_BOTTOM = {
-    'roadmap': 2.95, 'framework': 3.9, 'storage': 3.7, 'bus': 3.5, 'swstack': 3.9,
-    'trim': 3.7, 'loadpath': 2.7, 'flow': 3.2, 'nextsteps': 2.6, 'soc_arch': 3.8,
-    'official_block': 3.7,
+    'roadmap': 3.3, 'framework': 4.2, 'storage': 4.0, 'bus': 3.5, 'swstack': 4.2,
+    'trim': 3.7, 'loadpath': 2.7, 'flow': 3.2, 'soc_arch': 4.1,
+    'official_block': 3.95,
 }
 
 # =====================================================================
-# 生成脚本的头（imports + 主题 + helpers）
+# 生成脚本的头
 # =====================================================================
 HEADER = '''#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
@@ -215,7 +214,7 @@ def add_runs(p, text, size, color, bold_default=False, font=None):
             r.text = part; r.font.bold = bold_default
         r.font.size = Pt(size); r.font.color.rgb = color; r.font.name = f
 
-def bullets(s, items, left=0.6, top=1.25, width=12.1, height=None, size=15):
+def bullets(s, items, left=0.6, top=1.25, width=12.1, height=None, size=18):
     if height is None:
         height = 0.55 * len(items) + 0.30
     tb = s.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
@@ -223,14 +222,26 @@ def bullets(s, items, left=0.6, top=1.25, width=12.1, height=None, size=15):
     for i, it in enumerate(items):
         text, lvl = (it if isinstance(it, tuple) else (it, 0))
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
-        p.level = lvl; p.space_after = Pt(4)
+        p.level = lvl; p.space_after = Pt(3)
         add_runs(p, text, size - lvl * 1.5, DARK if lvl == 0 else GRAY)
     return tb
 
-def table(s, headers, rows, left=0.6, top=1.25, width=12.1, height=5.0, fs=12):
+def quote(s, text, top, size=14):
+    tb = s.shapes.add_textbox(Inches(0.6), Inches(top), Inches(12.1), Inches(0.5))
+    p = tb.text_frame.paragraphs[0]
+    add_runs(p, text, size, GRAY)
+    return tb
+
+def table(s, headers, rows, left=0.6, top=1.25, width=12.1, height=5.0, fs=14, first_col_w=None, rest_col_w=None):
     shp = s.shapes.add_table(len(rows) + 1, len(headers), Inches(left), Inches(top),
                              Inches(width), Inches(height))
     tbl = shp.table
+    n = len(headers)
+    if first_col_w:
+        tbl.columns[0].width = Inches(first_col_w)
+        rest = rest_col_w if rest_col_w else (width - first_col_w) / (n - 1) if n > 1 else width
+        for j in range(1, n):
+            tbl.columns[j].width = Inches(rest)
     for j, h in enumerate(headers):
         c = tbl.cell(0, j); c.text = ''
         add_runs(c.text_frame.paragraphs[0], str(h), fs, WHITE, bold_default=True)
@@ -267,7 +278,7 @@ def footer(s, text):
     tb = s.shapes.add_textbox(Inches(0.5), Inches(7.02), Inches(12.3), Inches(0.35))
     p = tb.text_frame.paragraphs[0]; p.alignment = PP_ALIGN.RIGHT
     r = p.add_run(); r.text = text + '   |   ' + str(PAGE[0])
-    r.font.size = Pt(9); r.font.color.rgb = GRAY; r.font.name = FONT
+    r.font.size = Pt(14); r.font.color.rgb = GRAY; r.font.name = FONT
 
 FOOT = 'coralnpu RISC-V NPU 上板验证与性能评估'
 '''
@@ -280,7 +291,6 @@ print('已生成:', out, '页数:', len(prs.slides._sldIdLst))
 
 
 def parse_md(text):
-    """解析 Markdown → (yaml, pages)；page blocks: (kind, ...) 按出现顺序"""
     m = re.match(r'^---\n(.*?)\n---\n', text, re.S)
     yaml = {}
     if m:
@@ -293,6 +303,7 @@ def parse_md(text):
     cur = None
     lines = text.splitlines()
     i = 0
+    tbl_attr = {}
     while i < len(lines):
         ln = lines[i]
         if ln.startswith('# '):
@@ -302,6 +313,16 @@ def parse_md(text):
             i += 1
             continue
         if cur is None:
+            i += 1
+            continue
+        # 表格属性注释 <!-- tbl size=16 -->
+        ma = re.match(r'^<!--\s*tbl\s+(.*?)\s*-->', ln.strip())
+        if ma:
+            attrs = {}
+            for kv in ma.group(1).split():
+                if '=' in kv:
+                    k, v = kv.split('=', 1); attrs[k] = v
+            tbl_attr = attrs
             i += 1
             continue
         mf = re.match(r'^\[图:([a-z_]+)\]', ln.strip())
@@ -316,7 +337,8 @@ def parse_md(text):
                     rows.append([c.strip() for c in lines[i].strip().strip('|').split('|')])
                 i += 1
             if rows:
-                cur['blocks'].append(('table', rows[0], rows[1:]))
+                cur['blocks'].append(('table', rows[0], rows[1:], tbl_attr))
+                tbl_attr = {}
             continue
         if re.match(r'^\s*-\s+', ln):
             items = []
@@ -354,16 +376,16 @@ def gen_py(yaml, pages, out_py, out_pptx_name):
 s = prs.slides.add_slide(BLANK)
 bg = s.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, prs.slide_width, prs.slide_height)
 bg.fill.solid(); bg.fill.fore_color.rgb = DARK; bg.line.fill.background()
-tb = s.shapes.add_textbox(Inches(1.0), Inches(2.3), Inches(11.3), Inches(1.6))
+tb = s.shapes.add_textbox(Inches(1.0), Inches(2.2), Inches(11.3), Inches(1.6))
 p = tb.text_frame.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
 r = p.add_run(); r.text = {py_str(title)}
 r.font.size = Pt(40); r.font.bold = True; r.font.color.rgb = WHITE; r.font.name = FONT
-tb2 = s.shapes.add_textbox(Inches(0.8), Inches(4.2), Inches(11.7), Inches(1.8))
+tb2 = s.shapes.add_textbox(Inches(0.8), Inches(4.1), Inches(11.7), Inches(2.0))
 tf2 = tb2.text_frame
-for i, t in enumerate([{py_str(core)}, {py_str(platform)}, {py_str(date)}]):
+for i, t in enumerate([{py_str(core)}, {py_str(platform)}, '', {py_str(date)}]):
     p = tf2.paragraphs[0] if i == 0 else tf2.add_paragraph()
     p.alignment = PP_ALIGN.CENTER; p.space_after = Pt(6)
-    r = p.add_run(); r.text = t; r.font.size = Pt(16); r.font.color.rgb = RGBColor(0xC8,0xD8,0xE8); r.font.name = FONT
+    r = p.add_run(); r.text = t; r.font.size = Pt(18); r.font.color.rgb = RGBColor(0xC8,0xD8,0xE8); r.font.name = FONT
 ''')
     for p in pages:
         title = p['title']
@@ -379,10 +401,7 @@ for i, t in enumerate([{py_str(core)}, {py_str(platform)}, {py_str(date)}]):
             elif kind == 'bullets':
                 items = blk[1]
                 n = len(items)
-                if has_fig:
-                    size = 16 if n <= 3 else 15 if n <= 5 else 14
-                else:
-                    size = 20 if n <= 3 else 18 if n <= 5 else 16 if n <= 7 else 14
+                size = 20 if n <= 4 else 18
                 code.append('bullets(s, [')
                 for t, lvl in items:
                     code.append(f'    ({py_str(t)}, {lvl}),')
@@ -390,13 +409,23 @@ for i, t in enumerate([{py_str(core)}, {py_str(platform)}, {py_str(date)}]):
                 y += 0.55 * n + 0.30
             elif kind == 'table':
                 rows_n = len(blk[2])
-                fs = 14 if rows_n <= 5 else 13 if rows_n <= 7 else 12
-                h = min(0.52 * (rows_n + 1) + 0.2, 5.4)
-                code.append(f'table(s, {py_str(blk[1])}, {py_str(blk[2])}, top={y:.2f}, height={h:.2f}, fs={fs})')
+                attrs = blk[3] if len(blk) > 3 else {}
+                fs = int(attrs.get('size', 14))
+                first_w = float(attrs['firstcol']) if 'firstcol' in attrs else None
+                rest_w = float(attrs['restcol']) if 'restcol' in attrs else None
+                h = min(0.5 * (rows_n + 1) + 0.2, 5.4)
+                code.append(f'table(s, {py_str(blk[1])}, {py_str(blk[2])}, top={y:.2f}, height={h:.2f}, fs={fs}, first_col_w={first_w}, rest_col_w={rest_w})')
                 y += h + 0.15
             elif kind == 'quote':
-                code.append(f'bullets(s, [({py_str(blk[1])}, 1)], top={y:.2f}, size=13, height=0.42)')
-                y += 0.42
+                txt = blk[1]
+                mq = re.match(r'^\[(\d+)\]\s*(.*)$', txt)
+                if mq:
+                    qsize = int(mq.group(1)); qtext = mq.group(2)
+                    code.append(f'quote(s, {py_str("**" + qtext + "**")}, {y:.2f}, size={qsize})')
+                    y += 0.6
+                else:
+                    code.append(f'quote(s, {py_str(txt)}, {y:.2f}, size=14)')
+                    y += 0.45
         code.append(f'footer(s, FOOT)')
     code.append(FOOTER.replace('__OUT__', out_pptx_name))
     with open(out_py, 'w') as f:
@@ -410,7 +439,7 @@ def main():
         sys.exit(1)
     md = sys.argv[1]
     out_pptx = os.path.abspath(sys.argv[2]) if len(sys.argv) > 2 else os.path.abspath('report.pptx')
-    out_py = os.path.join(os.path.dirname(out_pptx), 'gen.py')   # 生成的脚本与 pptx 同目录（.work/ppt/）
+    out_py = os.path.join(os.path.dirname(out_pptx), 'gen.py')
     yaml, pages = parse_md(open(md, encoding='utf-8').read())
     gen_py(yaml, pages, out_py, out_pptx)
 
