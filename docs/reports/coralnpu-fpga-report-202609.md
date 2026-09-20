@@ -57,7 +57,7 @@ date: "2026年9月"
 <!-- tbl colw=2.2,9.9 -->
 | 类别 | 内容 |
 |---|---|
-| 核 | 标量（rv32im）+ RVV 向量（Zve32x，VLEN=128）+ FPU + LSU + L1 Cache + TCM + Debug |
+| 核 | 标量（rv32im）+ RVV 向量（Zve32x，VLEN=128）+ FPU + LSU + TCM + Debug（**无 Cache**） |
 | 总线 | TileLink-UL（Xbar / Router / Socket / Arbiter / 异步 FIFO）+ 桥（Axi2TLUL / TLUL2Axi） |
 | 外设 | clint / plic / gpio / sram / rom / spi / dma |
 | 软件 | clang 工具链 · litert-micro（推理算子）· cocotb 等验证框架 |
@@ -69,6 +69,7 @@ date: "2026年9月"
 |---|---|
 | 矩阵计算 | mmac/mred 指令未实现（PE 阵列硬件空置）；文档描述的 outer-product MAC 未落地 |
 | 大内存 | DDR / ISP 通路未完成（io_ddr_mem_axi 悬空） |
+| Cache | L1I/L1D Cache 源码存在但未实例化（核取指用 UncachedFetch） |
 | 系统 | 无 OS / MMU / 多核（裸机单核 RV32）；仅 L1 Cache（无 L2/L3） |
 
 # 包含 ①：标量核（Scalar Core）
@@ -99,7 +100,7 @@ date: "2026年9月"
 
 [图:storage fs=16]
 
-- L1 Cache（L1I 8KB + L1D 16KB）、L0 I-Cache 1KB
+- **无 Cache**：取指用 UncachedFetch；L1 Cache 源码存在但**未实例化**（未接入核）
 - TCM（ITCM/DTCM，单周期 SRAM）+ FabricArbiter 仲裁
 - 外部：SRAM · ROM · DDR（规划）
 
@@ -177,7 +178,7 @@ date: "2026年9月"
 | MMU | 无 | 仅物理地址 |
 | 多核 | 单核 | hartId 参数 |
 | 位宽 | RV32 | xlen = 32 |
-| Cache | 仅 L1 | 无 L2/L3 |
+| Cache | **无** | 取指 UncachedFetch；仅 TCM（L1 源码未接入） |
 
 > [24] 定位：面向可穿戴的"裸机 NPU"——不追求通用计算能力
 
@@ -188,7 +189,7 @@ date: "2026年9月"
 <!-- tbl colw=3.0,9.1 -->
 | 模块 | 说明 |
 |---|---|
-| **rvv_core (CoreTlul)** | **核心**：标量 + RVV + FPU + LSU + Cache |
+| **rvv_core (CoreTlul)** | **核心**：标量 + RVV + FPU + LSU |
 | CoralNPUXbar | TileLink-UL 连接（路由 + 仲裁） |
 | uart_host | AXI→TL-UL 桥（程序加载/回读） |
 | 外设 | sram、clint、plic、gpio、rom |

@@ -46,7 +46,7 @@ def draw_roadmap(s, fs=14):
 FIGURES['storage'] = '''
 def draw_storage(s, fs=16):
     box(s, '核（SCore + RvvCore）', 4.6, 1.25, 4.1, 0.55, fill=DARK, tc=WHITE, fs=fs, bold=True)
-    box(s, 'L0 I-Cache 1KB ｜ L1I 8KB ｜ L1D 16KB', 3.4, 1.95, 6.5, 0.55, fill=RGBColor(0xD6,0xE4,0xF5), fs=fs)
+    box(s, '取指：UncachedFetch（无 Cache）', 3.4, 1.95, 6.5, 0.55, fill=RGBColor(0xF5,0xE0,0xD6), fs=fs)
     box(s, 'TCM：ITCM（8K~1M）+ DTCM（32K~1M）· 单周期 · FabricArbiter', 2.1, 2.65, 9.1, 0.55, fill=RGBColor(0xBF,0xD7,0xEE), fs=fs)
     box(s, '外部：SRAM · ROM · DDR（规划）', 0.8, 3.35, 11.7, 0.55, fill=RGBColor(0xA8,0xCB,0xE8), fs=fs)
     for y in (1.85, 2.55, 3.25):
@@ -112,7 +112,7 @@ def draw_flow(s, fs=18):
 FIGURES['soc_arch'] = '''
 def draw_soc_arch(s, fs=16):
     # 核心 rvv_core（居中）
-    box(s, 'rvv_core (CoreTlul)\\n标量 + RVV + FPU + LSU + Cache', 4.3, 1.25, 4.9, 1.0,
+    box(s, 'rvv_core (CoreTlul)\\n标量 + RVV + FPU + LSU', 4.3, 1.25, 4.9, 1.0,
         fill=DARK, tc=WHITE, fs=fs, bold=True)
     # 下方：存储层次（类似存储体系页）
     box(s, 'TCM：ITCM + DTCM（单周期）', 4.3, 2.4, 4.9, 0.55, fill=RGBColor(0xBF,0xD7,0xEE), fs=fs)
