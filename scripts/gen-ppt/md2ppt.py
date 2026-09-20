@@ -9,14 +9,13 @@ md2ppt.py —— Markdown → python-pptx 脚本 → PPTX
 Markdown 约定:
     ---            YAML 元数据（title/core/platform/date）→ 封面
     # 标题         新幻灯片
-    [图:name]      插入预定义矢量图（见 FIGURES）
+    [图:name fs=16] 插入预定义矢量图（可指定字号）
     - 要点         列表（缩进 2 空格 = 二级）
     | a | b |      Markdown 表格
-    > 文本         脚注（小字）；`> [24] 文本` 可指定字号并加粗
-    <!-- tbl size=16 -->   表格前的属性注释（size 字号）
+    > 文本         脚注；`> [24] 文本` 指定字号并加粗
+    <!-- tbl size=16 colw=3,2,2 -->     表格属性（字号/列宽）
+    <!-- bullets size=24 spacing=1.5 --> 列表属性（字号/行距）
     支持 **粗体** / *斜体*
-
-字号规范：正文 ≥18，其它（表格/佐证/图）≥14
 """
 import re
 import sys
@@ -25,12 +24,12 @@ import os
 REPO_DIR = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../..'))
 
 # =====================================================================
-# 图函数库（字号 ≥14；图占上半页）
+# 图函数库（fs 参数可调；图占上半页）
 # =====================================================================
 FIGURES = {}
 
 FIGURES['roadmap'] = '''
-def draw_roadmap(s):
+def draw_roadmap(s, fs=14):
     ms = [('M1', '上板闭环', '从零到上板闭环', GREEN),
           ('M2', '调试流程与环境', '流程/环境/规范落地', GREEN),
           ('M3', '完整 Core + 测试向量', 'TL-UL 主干 + RVV + 606 用例', GREEN),
@@ -38,124 +37,111 @@ def draw_roadmap(s):
           ('M5', '矩阵计算 + benchmark', '矩阵运算与基准评测', GRAY)]
     for i, (tag, name, desc, col) in enumerate(ms):
         x = 0.55 + i * 2.5
-        box(s, tag + '\\n' + name, x, 1.45, 2.3, 0.9, fill=col, tc=WHITE, fs=14, bold=True)
-        box(s, desc, x, 2.45, 2.3, 0.75, fs=14)
+        box(s, tag + '\\n' + name, x, 1.45, 2.3, 0.9, fill=col, tc=WHITE, fs=fs, bold=True)
+        box(s, desc, x, 2.45, 2.3, 0.75, fs=fs)
         if i < 4:
             arrow(s, x + 2.35, 1.75, 0.1, h=0.14)
 '''
 
-FIGURES['framework'] = '''
-def draw_framework(s):
-    layers = [('软件层', 'litert-micro（conv/dwconv/fc）· examples · tests', LIGHT),
-              ('核层', 'SCore(rv32im) + RvvCore(RVV) + FloatCore + LSU + L1 Cache + TCM', RGBColor(0xD6,0xE4,0xF5)),
-              ('总线层', 'TileLink-UL：Xbar · Router · Socket · Arbiter · FifoAsync', RGBColor(0xBF,0xD7,0xEE)),
-              ('桥/外设', 'Axi2TLUL · TLUL2Axi ‖ clint · plic · gpio · sram · spi · dma', RGBColor(0xA8,0xCB,0xE8))]
-    for i, (name, desc, col) in enumerate(layers):
-        y = 1.3 + i * 0.72
-        box(s, name, 0.5, y, 1.7, 0.65, fill=DARK, tc=WHITE, fs=14, bold=True)
-        box(s, desc, 2.35, y, 10.5, 0.65, fill=col, fs=14)
-'''
-
 FIGURES['storage'] = '''
-def draw_storage(s):
-    # 层次感：越靠近核越快/越小（金字塔收窄）
-    box(s, '核（SCore + RvvCore）', 4.6, 1.25, 4.1, 0.55, fill=DARK, tc=WHITE, fs=14, bold=True)
-    box(s, 'L0 I-Cache 1KB ｜ L1I 8KB ｜ L1D 16KB', 3.4, 1.95, 6.5, 0.55, fill=RGBColor(0xD6,0xE4,0xF5), fs=14)
-    box(s, 'TCM：ITCM（8K~1M）+ DTCM（32K~1M）· 单周期 · FabricArbiter', 2.1, 2.65, 9.1, 0.55, fill=RGBColor(0xBF,0xD7,0xEE), fs=14)
-    box(s, '外部：SRAM 256K（0x20000000）· ROM · DDR（规划，2GB）', 0.8, 3.35, 11.7, 0.55, fill=RGBColor(0xA8,0xCB,0xE8), fs=14)
+def draw_storage(s, fs=16):
+    box(s, '核（SCore + RvvCore）', 4.6, 1.25, 4.1, 0.55, fill=DARK, tc=WHITE, fs=fs, bold=True)
+    box(s, 'L0 I-Cache 1KB ｜ L1I 8KB ｜ L1D 16KB', 3.4, 1.95, 6.5, 0.55, fill=RGBColor(0xD6,0xE4,0xF5), fs=fs)
+    box(s, 'TCM：ITCM（8K~1M）+ DTCM（32K~1M）· 单周期 · FabricArbiter', 2.1, 2.65, 9.1, 0.55, fill=RGBColor(0xBF,0xD7,0xEE), fs=fs)
+    box(s, '外部：SRAM · ROM · DDR（规划）', 0.8, 3.35, 11.7, 0.55, fill=RGBColor(0xA8,0xCB,0xE8), fs=fs)
     for y in (1.85, 2.55, 3.25):
         arrow(s, 6.55, y, 0.0, 0.1, shape=MSO_SHAPE.DOWN_ARROW)
 '''
 
 FIGURES['bus'] = '''
-def draw_bus(s):
+def draw_bus(s, fs=16):
     hosts = ['coralnpu_core', 'uart_host', 'spi2tlul（规划）', 'dma（规划）']
     for i, h in enumerate(hosts):
-        box(s, h, 0.7 + i * 3.15, 1.35, 2.6, 0.55, fs=14)
-    box(s, 'CoralNPUXbar —— TileLink-UL 交叉开关', 0.7, 2.05, 11.9, 0.6, fill=DARK, tc=WHITE, fs=14, bold=True)
-    devs = ['coralnpu_device', 'sram 256K', 'clint / plic', 'gpio', 'rom', 'spi / dma']
+        box(s, h, 0.7 + i * 3.15, 1.35, 2.6, 0.55, fs=fs)
+    box(s, 'CoralNPUXbar —— TileLink-UL 交叉开关', 0.7, 2.05, 11.9, 0.6, fill=DARK, tc=WHITE, fs=fs, bold=True)
+    devs = ['coralnpu_device', 'sram', 'clint / plic', 'gpio', 'rom', 'spi / dma']
     for i, d in enumerate(devs):
-        box(s, d, 0.7 + i * 2.05, 2.8, 1.8, 0.55, fs=14)
+        box(s, d, 0.7 + i * 2.05, 2.8, 1.8, 0.55, fs=fs)
 '''
 
 FIGURES['swstack'] = '''
-def draw_swstack(s):
+def draw_swstack(s, fs=18):
     sw = [('工具链', 'RISC-V clang（host_clang）· crt0 · TCM 链接脚本'),
           ('运行库', 'litert-micro（conv / depthwise_conv / fully_connected）· rvv_opt.h'),
           ('示例', 'hello_world · rvv_add_intrinsic · MobileNet V1'),
           ('验证', 'cocotb · npusim · systemc · uvm · vcs_sim · verilator_sim')]
     for i, (name, desc) in enumerate(sw):
-        y = 1.3 + i * 0.72
-        box(s, name, 0.5, y, 1.7, 0.65, fill=DARK, tc=WHITE, fs=14, bold=True)
-        box(s, desc, 2.35, y, 10.5, 0.65, fs=14)
+        y = 1.3 + i * 0.78
+        box(s, name, 0.5, y, 1.7, 0.7, fill=DARK, tc=WHITE, fs=fs, bold=True)
+        box(s, desc, 2.35, y, 10.5, 0.7, fs=fs)
 '''
 
 FIGURES['trim'] = '''
-def draw_trim(s):
-    box(s, '上游 chip_nexus（完整，但 DDR/ISP 未完成）', 0.6, 1.35, 12.1, 0.55, fill=GRAY, tc=WHITE, fs=14, bold=True)
-    arrow(s, 6.6, 1.98, 0.0, 0.32, shape=MSO_SHAPE.DOWN_ARROW, color=RED)
-    box(s, '裁剪后（我们，M3）：CoreTlul + CoralNPUXbar + 外设 + uart_host', 0.6, 2.4, 12.1, 0.55, fill=GREEN, tc=WHITE, fs=14, bold=True)
-    box(s, '删除：ISP / DDR / spi2tlul / dma / spi_master(_flash)', 3.5, 3.05, 6.3, 0.5, fs=14)
+def draw_trim(s, fs=18):
+    box(s, '上游 chip_nexus（完整，但 DDR/ISP 未完成）', 0.6, 1.35, 12.1, 0.6, fill=GRAY, tc=WHITE, fs=fs, bold=True)
+    arrow(s, 6.6, 2.02, 0.0, 0.32, shape=MSO_SHAPE.DOWN_ARROW, color=RED)
+    box(s, '裁剪后（我们，M3）：CoreTlul + CoralNPUXbar + 外设 + uart_host', 0.6, 2.45, 12.1, 0.6, fill=GREEN, tc=WHITE, fs=fs, bold=True)
+    box(s, '删除：ISP / DDR / spi2tlul / dma / spi_master(_flash)', 3.5, 3.2, 6.3, 0.55, fs=fs)
 '''
 
 FIGURES['loadpath'] = '''
-def draw_loadpath(s):
+def draw_loadpath(s, fs=14):
     chain = [('PC 串口', 0.7), ('UART\\n收发', 2.75), ('host_cmd_fsm\\n命令解析', 4.8),
              ('Axi2TLUL\\n桥', 6.85), ('Xbar\\nuart_host', 8.9), ('核 TCM/CSR\\n· SRAM · 外设', 10.95)]
     for t, x in chain:
-        box(s, t, x, 1.6, 1.7, 0.95, fs=14)
+        box(s, t, x, 1.6, 1.7, 0.95, fs=fs)
         if x < 10.9:
             arrow(s, x + 1.78, 1.95, 0.1)
 '''
 
 FIGURES['flow'] = '''
-def draw_flow(s):
-    box(s, '100MHz 差分', 0.7, 1.35, 2.6, 0.6, fs=14)
+def draw_flow(s, fs=18):
+    box(s, '100MHz 差分', 0.7, 1.35, 2.6, 0.6, fs=fs)
     arrow(s, 3.35, 1.57, 0.4)
-    box(s, 'MMCM ×12/60', 3.85, 1.35, 2.6, 0.6, fill=RGBColor(0xD6,0xE4,0xF5), fs=14)
+    box(s, 'MMCM ×12/60', 3.85, 1.35, 2.6, 0.6, fill=RGBColor(0xD6,0xE4,0xF5), fs=fs)
     arrow(s, 6.5, 1.57, 0.4)
-    box(s, '20MHz 核时钟（单时钟域）', 7.0, 1.35, 5.6, 0.6, fill=RGBColor(0xD5,0xEF,0xDC), fs=14)
+    box(s, '20MHz 核时钟（单时钟域）', 7.0, 1.35, 5.6, 0.6, fill=RGBColor(0xD5,0xEF,0xDC), fs=fs)
     flow = [('Chisel RTL', 0.7), ('bazel 生成 SV', 3.3), ('Vivado 综合', 5.9),
             ('bitstream', 8.5), ('上板', 10.9)]
     for i, (t, x) in enumerate(flow):
-        box(s, t, x, 2.3, 2.3, 0.75, fs=14)
+        box(s, t, x, 2.3, 2.3, 0.8, fs=fs)
         if i < 4:
-            arrow(s, x + 2.35, 2.6, 0.12)
+            arrow(s, x + 2.35, 2.62, 0.12)
 '''
 
 FIGURES['soc_arch'] = '''
-def draw_soc_arch(s):
-    # 核心 = rvv_core（居中放大）
-    box(s, 'rvv_core (CoreTlul)\\n标量 + RVV + FPU + LSU + Cache', 4.2, 1.3, 4.9, 1.15,
-        fill=DARK, tc=WHITE, fs=14, bold=True)
-    # 左：加载通路（辅助）
-    box(s, 'PC 串口', 0.6, 1.55, 1.3, 0.6, fs=14)
-    box(s, 'host_cmd_fsm\\n+ Axi2TLUL', 2.05, 1.5, 1.9, 0.7, fs=14)
-    arrow(s, 1.95, 1.82, 0.1)
-    arrow(s, 4.05, 1.82, 0.12)
-    # 右：外设（辅助）
-    box(s, 'sram 256K / rom', 9.3, 1.35, 3.4, 0.5, fs=14)
-    box(s, 'clint / plic', 9.3, 1.95, 3.4, 0.5, fs=14)
-    box(s, 'gpio', 9.3, 2.55, 3.4, 0.5, fs=14)
-    # 下：Xbar（连接，弱化）
-    box(s, 'CoralNPUXbar（TileLink-UL 连接）', 4.2, 2.75, 4.9, 0.5, fill=LIGHT, fs=14)
-    arrow(s, 6.65, 2.5, 0.0, 0.2, shape=MSO_SHAPE.DOWN_ARROW)
-    box(s, 'coralnpu_device（ITCM/DTCM/CSR）', 4.2, 3.45, 4.9, 0.5, fill=RGBColor(0xD6,0xE4,0xF5), fs=14)
+def draw_soc_arch(s, fs=16):
+    # 核心 rvv_core（居中）
+    box(s, 'rvv_core (CoreTlul)\\n标量 + RVV + FPU + LSU + Cache', 4.3, 1.25, 4.9, 1.0,
+        fill=DARK, tc=WHITE, fs=fs, bold=True)
+    # 下方：存储层次（类似存储体系页）
+    box(s, 'TCM：ITCM + DTCM（单周期）', 4.3, 2.4, 4.9, 0.55, fill=RGBColor(0xBF,0xD7,0xEE), fs=fs)
+    box(s, '外部：SRAM / ROM / DDR（规划）', 4.3, 3.1, 4.9, 0.55, fill=RGBColor(0xA8,0xCB,0xE8), fs=fs)
+    arrow(s, 6.75, 2.3, 0.0, 0.1, shape=MSO_SHAPE.DOWN_ARROW)
+    # 右侧：外设
+    box(s, '外设', 9.7, 1.25, 3.0, 0.5, fill=LIGHT, fs=fs, bold=True)
+    box(s, 'sram', 9.7, 1.85, 3.0, 0.5, fs=fs)
+    box(s, 'clint / plic', 9.7, 2.45, 3.0, 0.5, fs=fs)
+    box(s, 'gpio / rom', 9.7, 3.05, 3.0, 0.5, fs=fs)
+    # 左侧：加载通路
+    box(s, 'PC → UART\\nhost_cmd_fsm / Axi2TLUL', 0.6, 1.6, 3.3, 0.9, fs=fs)
+    # 连接（Xbar 弱化）
+    box(s, 'CoralNPUXbar（TileLink-UL 连接）', 4.3, 3.8, 4.9, 0.5, fill=LIGHT, fs=fs)
 '''
 
 FIGURES['official_block'] = '''
-def draw_official_block(s):
+def draw_official_block(s, fs=14):
     img = os.path.join(r"__REPO__", 'coralnpu/doc/images/arch_data_flow.png')
-    s.shapes.add_picture(img, Inches(3.3), Inches(1.3), height=Inches(4.5))
+    s.shapes.add_picture(img, Inches(3.3), Inches(1.3), height=Inches(3.6))
 '''
 
 # =====================================================================
 # 各图底部 y 坐标
 # =====================================================================
 FIG_BOTTOM = {
-    'roadmap': 3.3, 'framework': 4.2, 'storage': 4.0, 'bus': 3.5, 'swstack': 4.2,
-    'trim': 3.7, 'loadpath': 2.7, 'flow': 3.2, 'soc_arch': 4.1,
-    'official_block': 3.95,
+    'roadmap': 3.3, 'storage': 4.0, 'bus': 3.5, 'swstack': 4.45,
+    'trim': 3.85, 'loadpath': 2.7, 'flow': 3.3, 'soc_arch': 4.4,
+    'official_block': 5.05,
 }
 
 # =====================================================================
@@ -199,7 +185,6 @@ def slide(title=None):
     return s
 
 def add_runs(p, text, size, color, bold_default=False, font=None):
-    """Markdown **粗体** / *斜体* → pptx run"""
     import re
     f = font or FONT
     for part in re.split(r'(\\*\\*[^*]+\\*\\*|\\*[^*]+\\*)', text):
@@ -214,15 +199,17 @@ def add_runs(p, text, size, color, bold_default=False, font=None):
             r.text = part; r.font.bold = bold_default
         r.font.size = Pt(size); r.font.color.rgb = color; r.font.name = f
 
-def bullets(s, items, left=0.6, top=1.25, width=12.1, height=None, size=18):
+def bullets(s, items, left=0.6, top=1.25, width=12.1, height=None, size=18, spacing=None):
     if height is None:
-        height = 0.55 * len(items) + 0.30
+        height = (size * 0.021) * len(items) + 0.25
     tb = s.shapes.add_textbox(Inches(left), Inches(top), Inches(width), Inches(height))
     tf = tb.text_frame; tf.word_wrap = True
     for i, it in enumerate(items):
         text, lvl = (it if isinstance(it, tuple) else (it, 0))
         p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
         p.level = lvl; p.space_after = Pt(3)
+        if spacing:
+            p.line_spacing = spacing
         add_runs(p, text, size - lvl * 1.5, DARK if lvl == 0 else GRAY)
     return tb
 
@@ -232,20 +219,14 @@ def quote(s, text, top, size=14):
     add_runs(p, text, size, GRAY)
     return tb
 
-def table(s, headers, rows, left=0.6, top=1.25, width=12.1, height=5.0, fs=14, first_col_w=None, rest_col_w=None, colw=None):
+def table(s, headers, rows, left=0.6, top=1.25, width=12.1, height=5.0, fs=14, colw=None):
     shp = s.shapes.add_table(len(rows) + 1, len(headers), Inches(left), Inches(top),
                              Inches(width), Inches(height))
     tbl = shp.table
-    n = len(headers)
     if colw:
         for j, w in enumerate(colw):
-            if j < n:
+            if j < len(headers):
                 tbl.columns[j].width = Inches(w)
-    elif first_col_w:
-        tbl.columns[0].width = Inches(first_col_w)
-        rest = rest_col_w if rest_col_w else (width - first_col_w) / (n - 1) if n > 1 else width
-        for j in range(1, n):
-            tbl.columns[j].width = Inches(rest)
     for j, h in enumerate(headers):
         c = tbl.cell(0, j); c.text = ''
         add_runs(c.text_frame.paragraphs[0], str(h), fs, WHITE, bold_default=True)
@@ -268,7 +249,8 @@ def box(s, text, x, y, w, h, fill=LIGHT, tc=DARK, fs=14, bold=False,
     else:
         shp.line.color.rgb = line; shp.line.width = Pt(1)
     tf = shp.text_frame; tf.word_wrap = True; tf.vertical_anchor = MSO_ANCHOR.MIDDLE
-    p = tf.paragraphs[0]; p.alignment = PP_ALIGN.CENTER
+    p = tf.paragraphs[0]
+    p.alignment = PP_ALIGN.CENTER
     add_runs(p, text, fs, tc, bold_default=bold)
     return shp
 
@@ -308,6 +290,7 @@ def parse_md(text):
     lines = text.splitlines()
     i = 0
     tbl_attr = {}
+    bl_attr = {}
     while i < len(lines):
         ln = lines[i]
         if ln.startswith('# '):
@@ -319,19 +302,21 @@ def parse_md(text):
         if cur is None:
             i += 1
             continue
-        # 表格属性注释 <!-- tbl size=16 -->
-        ma = re.match(r'^<!--\s*tbl\s+(.*?)\s*-->', ln.strip())
+        ma = re.match(r'^<!--\s*(tbl|bullets)\s+(.*?)\s*-->', ln.strip())
         if ma:
             attrs = {}
-            for kv in ma.group(1).split():
+            for kv in ma.group(2).split():
                 if '=' in kv:
                     k, v = kv.split('=', 1); attrs[k] = v
-            tbl_attr = attrs
+            if ma.group(1) == 'tbl':
+                tbl_attr = attrs
+            else:
+                bl_attr = attrs
             i += 1
             continue
-        mf = re.match(r'^\[图:([a-z_]+)\]', ln.strip())
+        mf = re.match(r'^\[图:([a-z_]+)(?:\s+fs=(\d+))?\]', ln.strip())
         if mf:
-            cur['blocks'].append(('fig', mf.group(1)))
+            cur['blocks'].append(('fig', mf.group(1), int(mf.group(2)) if mf.group(2) else None))
             i += 1
             continue
         if ln.strip().startswith('|'):
@@ -350,7 +335,8 @@ def parse_md(text):
                 indent = len(lines[i]) - len(lines[i].lstrip())
                 items.append((re.sub(r'^\s*-\s+', '', lines[i]).strip(), 1 if indent >= 2 else 0))
                 i += 1
-            cur['blocks'].append(('bullets', items))
+            cur['blocks'].append(('bullets', items, bl_attr))
+            bl_attr = {}
             continue
         if ln.strip().startswith('>'):
             cur['blocks'].append(('quote', ln.strip().lstrip('>').strip()))
@@ -369,7 +355,7 @@ def py_str(s):
 def gen_py(yaml, pages, out_py, out_pptx_name):
     code = [HEADER]
     for name in sorted(set(b[1] for p in pages for b in p['blocks'] if b[0] == 'fig')):
-        fig = FIGURES.get(name, f'def draw_{name}(s):\n    pass\n')
+        fig = FIGURES.get(name, f'def draw_{name}(s, fs=14):\n    pass\n')
         code.append(fig.replace('__REPO__', REPO_DIR))
     code.append('\n# ===== 封面 =====')
     title = yaml.get('title', '')
@@ -396,31 +382,30 @@ for i, t in enumerate([{py_str(core)}, {py_str(platform)}, '', {py_str(date)}]):
         code.append(f'\n# ===== {title} =====')
         code.append(f's = slide({py_str(title)})')
         y = 1.25
-        has_fig = any(b[0] == 'fig' for b in p['blocks'])
         for blk in p['blocks']:
             kind = blk[0]
             if kind == 'fig':
-                code.append(f'draw_{blk[1]}(s)')
+                fs_arg = f', fs={blk[2]}' if blk[2] else ''
+                code.append(f'draw_{blk[1]}(s{fs_arg})')
                 y = FIG_BOTTOM.get(blk[1], 3.7) + 0.15
             elif kind == 'bullets':
                 items = blk[1]
+                attrs = blk[2] if len(blk) > 2 else {}
                 n = len(items)
-                size = 20 if n <= 4 else 18
+                size = int(attrs.get('size', 20 if n <= 4 else 18))
+                spacing = attrs.get('spacing')
                 code.append('bullets(s, [')
                 for t, lvl in items:
                     code.append(f'    ({py_str(t)}, {lvl}),')
-                code.append(f'], top={y:.2f}, size={size})')
-                y += 0.55 * n + 0.30
+                code.append(f'], top={y:.2f}, size={size}' + (f', spacing={spacing}' if spacing else '') + ')')
+                y += 0.6 * n + 0.30
             elif kind == 'table':
                 rows_n = len(blk[2])
                 attrs = blk[3] if len(blk) > 3 else {}
                 fs = int(attrs.get('size', 14))
-                first_w = float(attrs['firstcol']) if 'firstcol' in attrs else None
-                rest_w = float(attrs['restcol']) if 'restcol' in attrs else None
-                colw_s = attrs.get('colw')
-                colw = [float(x) for x in colw_s.split(',')] if colw_s else None
+                colw = [float(x) for x in attrs['colw'].split(',')] if 'colw' in attrs else None
                 h = min(0.5 * (rows_n + 1) + 0.2, 5.4)
-                code.append(f'table(s, {py_str(blk[1])}, {py_str(blk[2])}, top={y:.2f}, height={h:.2f}, fs={fs}, first_col_w={first_w}, rest_col_w={rest_w}, colw={colw})')
+                code.append(f'table(s, {py_str(blk[1])}, {py_str(blk[2])}, top={y:.2f}, height={h:.2f}, fs={fs}, colw={colw})')
                 y += h + 0.15
             elif kind == 'quote':
                 txt = blk[1]

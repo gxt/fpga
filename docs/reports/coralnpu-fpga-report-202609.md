@@ -7,6 +7,7 @@ date: "2026年9月"
 
 # 汇报提纲
 
+<!-- bullets size=24 spacing=1.5 -->
 - **一、coralnpu 是什么？**——代码框架（包含什么 / 不包含什么）
 - **二、如何集成到 FPGA SoC**（裁剪 / 加载通路 / 时钟与流程）
 - **三、如何做性能评估**（指标定义 / 测量方法 / 实测与不足）
@@ -67,12 +68,12 @@ date: "2026年9月"
 | 类别 | 缺失 |
 |---|---|
 | 矩阵计算 | mmac/mred 指令未实现（PE 阵列硬件空置）；文档描述的 outer-product MAC 未落地 |
-| 大内存 | DDR / ISP 通路未完成（io_ddr_mem_axi 悬空）；SPI 加载未实例化 |
+| 大内存 | DDR / ISP 通路未完成（io_ddr_mem_axi 悬空） |
 | 系统 | 无 OS / MMU / 多核（裸机单核 RV32）；仅 L1 Cache（无 L2/L3） |
 
 # 包含 ①：标量核（Scalar Core）
 
-<!-- tbl colw=2.0,10.1 -->
+<!-- tbl size=16 colw=2.0,10.1 -->
 | 特性 | 内容 |
 |---|---|
 | ISA | rv32im（+ Zicsr/Zifencei/Zbb） |
@@ -84,7 +85,7 @@ date: "2026年9月"
 
 # 包含 ②：向量核（RVV / SIMD）
 
-<!-- tbl colw=2.0,10.1 -->
+<!-- tbl size=16 colw=2.0,10.1 -->
 | 特性 | 内容 |
 |---|---|
 | ISA 扩展 | RV32IMF_Zve32x |
@@ -96,46 +97,47 @@ date: "2026年9月"
 
 # 包含 ③：存储体系
 
-[图:storage]
+[图:storage fs=16]
 
 - L1 Cache（L1I 8KB + L1D 16KB）、L0 I-Cache 1KB
 - TCM（ITCM/DTCM，单周期 SRAM）+ FabricArbiter 仲裁
-- 外部：SRAM 256K（0x20000000）· ROM · DDR（规划）
+- 外部：SRAM · ROM · DDR（规划）
 
 > 佐证：coralnpu/hdl/chisel/src/coralnpu/{L1ICache,L1DCache,BankedItcm,BankedDtcm,Parameters}.scala（L165-173）
 
 # TCM 容量需求与产品形态影响
 
-| 内存层 | 容量 / 地址 | 说明 |
+<!-- tbl size=16 colw=2.0,5.05,5.05 -->
+| 存储层 | 容量 / 地址 | 说明 |
 |---|---|---|
 | TCM | 8K/32K 默认；1M/1M highmem | 核内单周期 SRAM（scratchpad） |
-| EXTMEM | 0x20000000（4MB 窗口） | 外部内存区；我们 SoC 中是 SRAM 256K |
+| EXTMEM | 0x20000000（4MB 窗口） | 外部内存区；我们 SoC 中是 SRAM |
 | DDR | 0x80000000（2GB 窗口） | 片外 DRAM（未实现） |
 
-- 官方 MobileNet 示例：itcm/dtcm=1024（1M/1M）；**tensor_arena=4MB**
-- arena 4MB 超出 1M TCM → **必须 EXTMEM/DDR**
+- **tensor_arena**：TFLite Micro 推理时的**工作内存区**（存放中间张量），官方 MobileNet 示例为 4MB
+- 官方 MobileNet 示例：itcm/dtcm=1024（1M/1M）；arena 4MB 超出 1M TCM → **必须 EXTMEM/DDR**
 - TCM 定位 = 高速 scratchpad（确定性延迟），**不是模型存储**
 
 > 佐证：coralnpu/tests/npusim_examples/BUILD（L36-37）、run_full_mobilenet_v1.cc（L53）；coralnpu/toolchain/coralnpu_tcm.ld.tpl
 
 # 包含 ④：总线与外设
 
-[图:bus]
+[图:bus fs=16]
 
 - 主干：**TileLink-UL（TL-UL）** 交叉开关（Xbar）
 - 主机：coralnpu_core、uart_host、spi2tlul（规划）、dma（规划）
-- 设备：coralnpu_device（ITCM/DTCM/CSR）、sram 256K、clint、plic、gpio、spi/dma
+- 设备：coralnpu_device（ITCM/DTCM/CSR）、sram、clint、plic、gpio、spi/dma
 - 桥：Axi2TLUL（host 入口）、TLUL2Axi（核访问外部）
 
 > 佐证：coralnpu/hdl/chisel/src/bus/*.scala；coralnpu/hdl/chisel/src/soc/{CoralNPUXbar,CrossbarConfig}.scala
 
 # 包含 ⑤：软件栈与验证框架
 
-[图:swstack]
+[图:swstack fs=18]
 
 # 不包含 ①：矩阵计算（关键边界）
 
-<!-- tbl colw=2.0,5.05,5.05 -->
+<!-- tbl size=16 colw=2.0,5.05,5.05 -->
 | 层面 | 文档描述 | 代码实现现状 |
 |---|---|---|
 | 矩阵 MAC | outer-product，256 MACs/cycle | **未实现**（无 VDOT/outer-product 代码） |
@@ -143,23 +145,31 @@ date: "2026年9月"
 | VME (Zvt) | mset* + PE 阵列 | 仅 mset 配置；**mmac/mred 缺失** |
 | 实际矩阵乘 | — | 标准 RVV 软件实现 |
 
+**术语说明**
+
+- **mset**：VME（Zvt）矩阵**配置**指令（设置 tile 状态）；**mmac / mred**：矩阵**乘 / 累加计算**指令——**未实现**
+- **VDOT / outer-product**：文档描述的硬件矩阵 MAC 引擎（256 MACs/cycle）——**代码中无实现**
+- **Zvt**：RISC-V 矩阵扩展；coralnpu 中仅 mset 配置 + PE 阵列硬件，缺计算指令
+- 佐证：coralnpu/hdl/chisel/src/coralnpu/rvv/RvvDecode.scala（L119-135，仅 mset）
+
 > [24] 结论：文档描述的"硬件矩阵加速"未落地——实际能力 = 标准 RVV 软件算子
 
-# 不包含 ②：DDR / ISP 数据通路未完成
+# 不包含 ②：DDR / ISP / SPI / DMA 通路未完成
 
-<!-- tbl colw=2.0,5.05,5.05 -->
+<!-- tbl size=16 colw=2.0,5.05,5.05 -->
 | 模块 | 规划 | 现状 |
 |---|---|---|
 | DDR | ddr_ctrl + ddr_mem（2GB） | io_ddr_mem_axi **悬空**（无驱动） |
 | ISP | ispyocto_ctrl + AXI master | AXI 接入但 DDR 未通 |
 | SPI 加载 | spi2tlul 主机桥 | chisel SoC 未实例化 |
+| DMA | dma（0x40050000） | DmaEngine 实现存在，M3 未接入 |
 
 - 上游"预留但未完成"的部分——M3 裁剪时删除
 - 影响：大模型数据无法放入内存 → 产品形态不完整
 
 # 不包含 ③：OS / MMU / 多核
 
-<!-- tbl colw=2.0,5.05,5.05 -->
+<!-- tbl size=16 colw=2.0,2.0,8.1 -->
 | 项 | 状态 | 说明 |
 |---|---|---|
 | 操作系统 | 无 | run-to-completion |
@@ -173,7 +183,7 @@ date: "2026年9月"
 
 # SoC 整体架构
 
-[图:soc_arch]
+[图:soc_arch fs=16]
 
 <!-- tbl colw=3.0,9.1 -->
 | 模块 | 说明 |
@@ -181,14 +191,14 @@ date: "2026年9月"
 | **rvv_core (CoreTlul)** | **核心**：标量 + RVV + FPU + LSU + Cache |
 | CoralNPUXbar | TileLink-UL 连接（路由 + 仲裁） |
 | uart_host | AXI→TL-UL 桥（程序加载/回读） |
-| 外设 | sram 256K、clint、plic、gpio、rom |
+| 外设 | sram、clint、plic、gpio、rom |
 
 # 集成方法 ①：SoC 裁剪
 
-[图:trim]
+[图:trim fs=18]
 
 - **上游 chip_nexus**：核 + Xbar + ISP + DDR + SPI + DMA + 外设（DDR/ISP 未完成）
-- **我们裁剪后**：CoreTlul + CoralNPUXbar + clint/plic/gpio/sram(256K) + uart_host
+- **我们裁剪后**：CoreTlul + CoralNPUXbar + clint/plic/gpio/sram + uart_host
 - **删除**：ISP / DDR / spi2tlul / dma / spi_master(_flash)
 
 > 佐证：M3/E1（T022 SoC 裁剪：删 ISP/DDR/SPI/DMA）；coralnpu/hdl/chisel/src/soc/CrossbarConfig.scala
@@ -205,7 +215,7 @@ date: "2026年9月"
 
 # 集成方法 ③：时钟 · 综合流程 · 版本管理
 
-[图:flow]
+[图:flow fs=18]
 
 - **时钟**：100MHz 差分 → MMCM ×12/60 → **20MHz 单时钟域**
 - **SV 生成**：Chisel RTL → bazel（参数化 TCM）
@@ -259,6 +269,7 @@ date: "2026年9月"
 
 # FPGA 资源利用率（T023，20MHz）
 
+<!-- tbl size=16 -->
 | 资源 | 用量 | 总数 | 利用率 |
 |---|---|---|---|
 | Slice LUTs | 467,150 | 1,221,600 | **38.24%** |
@@ -284,10 +295,13 @@ date: "2026年9月"
 | 5 | 8K/1M 默认 | **通过**（0 拥塞）；时序 -20.7ns | 11 | 约束覆盖（pin 修正） | 22331 信号拥塞 |
 | 6 | route 后 phys_opt | -17ns（仍违例） | 12 | 方案 A（上游约束） | 验证中 |
 
-- **根因**：LSU deqPtr 高扇出（fo=63951）→ 路径 67ns；DTCM BRAM 挤压布局
-- **方案 A**：回 20MHz（好布局）+ 借鉴上游约束（MAX_FANOUT 256 + MUXF_REMAP）
+<!-- bullets size=16 -->
+- **第 12 轮发现的问题**：LSU deqPtr 高扇出（fo=63951）→ 路径 67ns；DTCM BRAM 挤压布局
+- **方案 A**（进行中）：回 20MHz + 借鉴上游约束（MAX_FANOUT 256 + MUXF_REMAP）
+- **方案 B**（待验证）：DTCM 降容至 512K + 重编译用例（减小 BRAM 挤压）
+- **方案 C**（待验证）：改核 RTL 拆分 LSU 高扇出门控
 
-# 结论与下一步
+# 结论与挑战
 
 **结论**
 
@@ -300,11 +314,17 @@ date: "2026年9月"
 - DTCM 扩到 1M 后，route 阶段出现严重布线拥塞（最高 27739 个信号无法布线）
 - 同时时序违例（WNS -20.7ns）——LSU deqPtr 高扇出（fo=63951，路径 67ns）+ DTCM BRAM 阵列挤压 LSU 布局
 - 拥塞与时序交织：改布局修拥塞→时序变差；降频修时序→布局变差
-- 已尝试 12 轮（累计 ~90 机器小时）；当前方案 A：回 20MHz + 借鉴上游 MAX_FANOUT 约束
+- 已尝试 12 轮（累计 ~90 机器小时）
+
+# 优化方向与下一步
 
 **性能优化方向**
 
 - 指令调度/展开（optimized 版已达 25.3%）、多发射、数据复用
 - **自行增加矩阵运算**（实现 mmac 矩阵指令，释放 PE 阵列硬件能力）
 
-**下一步**：SPI 加载提速（秒级）→ DDR 通路（补全产品形态）→ 全面评测（8 个 DDR 用例 + 全量 621 回归）
+**下一步**
+
+- SPI 加载提速（秒级）
+- DDR 通路（补全产品形态）
+- 全面评测（8 个 DDR 用例 + 全量 621 回归）
