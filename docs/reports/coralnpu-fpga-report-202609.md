@@ -48,7 +48,8 @@ date: "2026年9月"
 | 流水 | 四阶段、in-order dispatch、out-of-order retire |
 | 发射 | 四路标量 + 两路向量 |
 | SIMD | 128-bit（256-bit future） |
-| TCM 默认 | 8KB ITCM + 32KB DTCM（单周期 SRAM） |
+| TCM | 单周期紧耦合存储（ITCM 指令 / DTCM 数据） |
+| 片内 SRAM | SoC 集成时提供（我们：256KB @0x20000000） |
 | 目标产品 | 超低功耗可穿戴 SoC |
 | 官方文档 | Architecture Datasheet（developers.google.com/coral） |
 
@@ -313,9 +314,6 @@ date: "2026年9月"
 | DSP Slices | 12,288 | 2,160 |
 | 用途 | 官方综合基线（未上板） | **已上板验证** |
 
-- 上游器件更先进（16nm，容量约 1.4×）——但仅作综合基线（未上板，综合需 ~23G 内存）
-- 我们的 Virtex-7 已上板验证（RVV SoC：LUT 38.24%、BRAM 5.73%）
-
 > **UltraRAM（URAM）**：UltraScale+ 引入的大容量片上存储（**288Kb/块**，密度约 8× 于 Block RAM），适合大 buffer/权重存储；**Block RAM（BRAM）**为 36Kb/块，配置更灵活、延迟更低——**7 系列无 URAM**（故上游有、我们的板卡没有）
 
 # 当前挑战：TCM 扩容的尝试
@@ -330,7 +328,7 @@ date: "2026年9月"
 | 5 | 8K/1M 默认 | **通过**（0 拥塞）；时序 -20.7ns | 11 | 约束覆盖（pin 修正） | 22331 信号拥塞 |
 | 6 | route 后 phys_opt | -17ns（仍违例） | 12 | 方案 A（上游约束） | 验证中 |
 
-<!-- bullets size=16 -->
+<!-- bullets size=16 top=5.3 -->
 - **第 12 轮发现的问题**：LSU deqPtr 高扇出（fo=63951）→ 路径 67ns；DTCM BRAM 挤压布局
 - **方案 A**（进行中）：回 20MHz + 借鉴上游约束（MAX_FANOUT 256 + MUXF_REMAP）
 - **方案 B**（待验证）：DTCM 降容至 512K + 重编译用例（减小 BRAM 挤压）
@@ -357,7 +355,7 @@ date: "2026年9月"
 
 - SPI 加载提速（秒级）
 - DDR 通路（补全产品形态）
-- 全面评测（15 个超限用例：8 DDR + 7 无 DDR；+ 全量 621 回归）
+- 全面评测（15 个超限用例：7 highmem + 8 DDR；+ 全量 621 回归）
 
 **优化方向**
 

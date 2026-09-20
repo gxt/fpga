@@ -408,11 +408,12 @@ for i, t in enumerate([{py_str(core)}, {py_str(platform)}, '', '', {py_str(date)
                 n = len(items)
                 size = int(attrs.get('size', 20 if n <= 4 else 18))
                 spacing = attrs.get('spacing')
+                top_v = float(attrs['top']) if 'top' in attrs else y
                 code.append('bullets(s, [')
                 for t, lvl in items:
                     code.append(f'    ({py_str(t)}, {lvl}),')
-                code.append(f'], top={y:.2f}, size={size}' + (f', spacing={spacing}' if spacing else '') + ')')
-                y += (size * 0.021 * (float(spacing) if spacing else 1.0)) * n + 0.30
+                code.append(f'], top={top_v:.2f}, size={size}' + (f', spacing={spacing}' if spacing else '') + ')')
+                y = top_v + (size * 0.021 * (float(spacing) if spacing else 1.0)) * n + 0.30
             elif kind == 'table':
                 rows_n = len(blk[2])
                 attrs = blk[3] if len(blk) > 3 else {}
