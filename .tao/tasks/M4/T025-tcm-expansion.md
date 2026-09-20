@@ -7,7 +7,7 @@ SoC 切 highmem 布局（DTCM 1M @0x100000），评测 7 个无 DDR 超限用例
 - 15 超限用例链接到 **highmem 布局**（ITCM@0x0 + DTCM@0x100000 + CSR@0x200000）
 - **SoC 自动布局**（SoCChiselConfig.scala L132-135）：`dtcm ≠ 32K` → 自动 MemoryRegions.highmem
 - **配置决定（2026-08-26）：保持 1M/1M**（itcm=1024, dtcm=1024）——与 highmem 缺省常量一致（Parameters.scala L61-62），配置简单、与用例链接布局完全匹配；ITCM 1M 虽浪费（代码只用 1-6K）但资源够用（BRAM ~530 RAMB36/41% + SRAM 74 ≈ 46%，DualV7 共 1292 余量充足）
-- **配置变更（2026-09-20，取代上条）：改为 8K/1M**（itcm=8, dtcm=1024）——1M/1M 拥塞 23087 布不通；8K/1M 满足用例需求（代码 1-6K，ITCM 8K 用 LUTRAM 释放 BRAM 治拥塞），DTCM 1M 匹配用例数据需求。fork 链：a5b6e122(1M/1M) → f3937fe3(64K/1M) → 5b93fc54(8K/1M)
+- **阶段目标（2026-09-20）：先验证 8K/1M**（itcm=8, dtcm=1024）——**最终目标仍是 1M/1M highmem**（与 chip_nexus 一致），但 1M/1M 当前拥塞 23087 布不通；8K/1M 作为过渡配置先跑通流程（代码仅 1-6K，ITCM 8K 用 LUTRAM 释放 BRAM 治拥塞；DTCM 1M 满足用例数据需求）。fork 链：a5b6e122(1M/1M) → f3937fe3(64K/1M) → 5b93fc54(8K/1M)
 
 ## 7 个目标用例（无 DDR）
 
