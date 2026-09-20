@@ -132,7 +132,7 @@ def draw_soc_arch(s, fs=16):
 FIGURES['official_block'] = '''
 def draw_official_block(s, fs=14):
     img = os.path.join(r"__REPO__", 'coralnpu/doc/images/arch_data_flow.png')
-    s.shapes.add_picture(img, Inches(3.3), Inches(1.3), height=Inches(3.6))
+    s.shapes.add_picture(img, Inches(3.1), Inches(1.3), height=Inches(4.0))
 '''
 
 # =====================================================================
@@ -141,7 +141,7 @@ def draw_official_block(s, fs=14):
 FIG_BOTTOM = {
     'roadmap': 3.3, 'storage': 4.0, 'bus': 3.5, 'swstack': 4.45,
     'trim': 3.85, 'loadpath': 2.7, 'flow': 3.3, 'soc_arch': 4.4,
-    'official_block': 5.05,
+    'official_block': 5.35,
 }
 
 # =====================================================================
@@ -233,6 +233,9 @@ def table(s, headers, rows, left=0.6, top=1.25, width=12.1, height=5.0, fs=14, c
         for j, w in enumerate(colw):
             if j < len(headers):
                 tbl.columns[j].width = Inches(w)
+    row_h = height / (len(rows) + 1)
+    for r in tbl.rows:
+        r.height = Inches(row_h)
     for j, h in enumerate(headers):
         c = tbl.cell(0, j); c.text = ''
         add_runs(c.text_frame.paragraphs[0], str(h), fs, WHITE, bold_default=True)
@@ -435,8 +438,8 @@ for i, t in enumerate([{py_str(core)}, {py_str(platform)}, '', '', {py_str(date)
                     code.append(f'quote(s, {py_str("**" + qtext + "**")}, {qtop:.2f}, size={qsize})')
                     y = qtop + 0.6
                 else:
-                    code.append(f'quote(s, {py_str(txt)}, {qtop:.2f}, size=14)')
-                    y = qtop + 0.45
+                    # 佐证/说明：统一固定到页面底部（靠下）
+                    code.append(f'quote(s, {py_str(txt)}, 6.45, size=14)')
         code.append(f'footer(s, FOOT)')
     code.append(FOOTER.replace('__OUT__', out_pptx_name))
     with open(out_py, 'w') as f:
