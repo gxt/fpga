@@ -78,10 +78,10 @@ def draw_swstack(s, fs=18):
 
 FIGURES['trim'] = '''
 def draw_trim(s, fs=18):
-    box(s, '上游 chip_nexus（完整，但 DDR/ISP 未完成）', 0.6, 1.35, 12.1, 0.6, fill=GRAY, tc=WHITE, fs=fs, bold=True)
+    box(s, '上游 chip_nexus（完整 SoC 设计）', 0.6, 1.35, 12.1, 0.6, fill=GRAY, tc=WHITE, fs=fs, bold=True)
     arrow(s, 6.6, 2.02, 0.0, 0.32, shape=MSO_SHAPE.DOWN_ARROW, color=RED)
     box(s, '裁剪后（我们，M3）：CoreTlul + CoralNPUXbar + 外设 + uart_host', 0.6, 2.45, 12.1, 0.6, fill=GREEN, tc=WHITE, fs=fs, bold=True)
-    box(s, '删除：ISP / DDR / spi2tlul / dma / spi_master(_flash)', 3.5, 3.2, 6.3, 0.55, fs=fs)
+    box(s, '删除：ISP / DDR / spi2tlul / dma / spi_master(_flash)', 0.6, 3.2, 12.1, 0.55, fs=fs)
 '''
 
 FIGURES['loadpath'] = '''
@@ -291,6 +291,7 @@ def parse_md(text):
     i = 0
     tbl_attr = {}
     bl_attr = {}
+    q_attr = {}
     while i < len(lines):
         ln = lines[i]
         if ln.startswith('# '):
@@ -302,7 +303,7 @@ def parse_md(text):
         if cur is None:
             i += 1
             continue
-        ma = re.match(r'^<!--\s*(tbl|bullets)\s+(.*?)\s*-->', ln.strip())
+        ma = re.match(r'^<!--\s*(tbl|bullets|quote)\s+(.*?)\s*-->', ln.strip())
         if ma:
             attrs = {}
             for kv in ma.group(2).split():
@@ -310,8 +311,10 @@ def parse_md(text):
                     k, v = kv.split('=', 1); attrs[k] = v
             if ma.group(1) == 'tbl':
                 tbl_attr = attrs
-            else:
+            elif ma.group(1) == 'bullets':
                 bl_attr = attrs
+            else:
+                q_attr = attrs
             i += 1
             continue
         mf = re.match(r'^\[图:([a-z_]+)(?:\s+fs=(\d+))?\]', ln.strip())
@@ -339,7 +342,8 @@ def parse_md(text):
             bl_attr = {}
             continue
         if ln.strip().startswith('>'):
-            cur['blocks'].append(('quote', ln.strip().lstrip('>').strip()))
+            cur['blocks'].append(('quote', ln.strip().lstrip('>').strip(), q_attr))
+            q_attr = {}
             i += 1
             continue
         i += 1
@@ -409,14 +413,16 @@ for i, t in enumerate([{py_str(core)}, {py_str(platform)}, '', {py_str(date)}]):
                 y += h + 0.15
             elif kind == 'quote':
                 txt = blk[1]
+                qa = blk[2] if len(blk) > 2 else {}
+                qtop = float(qa['top']) if 'top' in qa else y
                 mq = re.match(r'^\[(\d+)\]\s*(.*)$', txt)
                 if mq:
                     qsize = int(mq.group(1)); qtext = mq.group(2)
-                    code.append(f'quote(s, {py_str("**" + qtext + "**")}, {y:.2f}, size={qsize})')
-                    y += 0.6
+                    code.append(f'quote(s, {py_str("**" + qtext + "**")}, {qtop:.2f}, size={qsize})')
+                    y = qtop + 0.6
                 else:
-                    code.append(f'quote(s, {py_str(txt)}, {y:.2f}, size=14)')
-                    y += 0.45
+                    code.append(f'quote(s, {py_str(txt)}, {qtop:.2f}, size=14)')
+                    y = qtop + 0.45
         code.append(f'footer(s, FOOT)')
     code.append(FOOTER.replace('__OUT__', out_pptx_name))
     with open(out_py, 'w') as f:

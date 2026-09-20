@@ -13,12 +13,14 @@ date: "2026年9月"
 - **三、如何做性能评估**（指标定义 / 测量方法 / 实测与不足）
 - **四、现状、挑战与下一步**
 
+<!-- quote top=4.8 -->
 > [24] 核心问题：这个核"有什么、缺什么"，我们"怎么做、怎么评"
 
 # 项目目标与路线
 
 [图:roadmap]
 
+<!-- tbl colw=2.0,8.1,2.0 -->
 | 里程碑 | 内容 | 状态 |
 |---|---|---|
 | **M1** | 上板闭环 | 完成 |
@@ -70,7 +72,7 @@ date: "2026年9月"
 | 矩阵计算 | mmac/mred 指令未实现（PE 阵列硬件空置）；文档描述的 outer-product MAC 未落地 |
 | 大内存 | DDR / ISP 通路未完成（io_ddr_mem_axi 悬空） |
 | Cache | L1I/L1D Cache 源码存在但未实例化（核取指用 UncachedFetch） |
-| 系统 | 无 OS / MMU / 多核（裸机单核 RV32）；仅 L1 Cache（无 L2/L3） |
+| 系统 | 无 OS / MMU / 多核（裸机单核 RV32）；无 Cache（取指 UncachedFetch） |
 
 # 包含 ①：标量核（Scalar Core）
 
@@ -84,6 +86,12 @@ date: "2026年9月"
 | 执行模型 | run-to-completion，无 OS 依赖 |
 | 寄存器 | 32 位 × 31 个 + CSR |
 
+**扩展说明**
+
+- **Zicsr**：CSR 访问指令（控制/状态寄存器读写）
+- **Zifencei**：指令流同步（fence.i，取指与数据一致性）
+- **Zbb**：基础位操作扩展（bit manipulation）
+
 # 包含 ②：向量核（RVV / SIMD）
 
 <!-- tbl size=16 colw=2.0,10.1 -->
@@ -95,6 +103,10 @@ date: "2026年9月"
 | 指令 | vsetvli / vle / vse / vadd 等标准 RVV |
 | 发射 | 两路向量 |
 | 验证 | 606 个 RVV 用例，正常 100% 通过 |
+
+**Zve32x 说明**
+
+- RISC-V **嵌入式向量扩展**（32 位元素）——coralnpu 实现的标准向量子集（VLEN=128）
 
 # 包含 ③：存储体系
 
@@ -115,7 +127,7 @@ date: "2026年9月"
 | EXTMEM | 0x20000000（4MB 窗口） | 外部内存区；我们 SoC 中是 SRAM |
 | DDR | 0x80000000（2GB 窗口） | 片外 DRAM（未实现） |
 
-- **tensor_arena**：TFLite Micro 推理时的**工作内存区**（存放中间张量），官方 MobileNet 示例为 4MB
+- **tensor_arena**：TFLite Micro 推理的工作内存区（中间张量），官方示例 4MB
 - 官方 MobileNet 示例：itcm/dtcm=1024（1M/1M）；arena 4MB 超出 1M TCM → **必须 EXTMEM/DDR**
 - TCM 定位 = 高速 scratchpad（确定性延迟），**不是模型存储**
 
@@ -125,10 +137,10 @@ date: "2026年9月"
 
 [图:bus fs=16]
 
-- 主干：**TileLink-UL（TL-UL）** 交叉开关（Xbar）
-- 主机：coralnpu_core、uart_host、spi2tlul（规划）、dma（规划）
-- 设备：coralnpu_device（ITCM/DTCM/CSR）、sram、clint、plic、gpio、spi/dma
-- 桥：Axi2TLUL（host 入口）、TLUL2Axi（核访问外部）
+- **Backbone**: TileLink-UL (Xbar)
+- **Hosts**: coralnpu_core、uart_host、spi2tlul（规划）、dma（规划）
+- **Devices**: coralnpu_device（ITCM/DTCM/CSR）、sram、clint、plic、gpio、spi/dma
+- **Bridges**: Axi2TLUL（host 入口）、TLUL2Axi（核访问外部）
 
 > 佐证：coralnpu/hdl/chisel/src/bus/*.scala；coralnpu/hdl/chisel/src/soc/{CoralNPUXbar,CrossbarConfig}.scala
 
@@ -148,10 +160,9 @@ date: "2026年9月"
 
 **术语说明**
 
-- **mset**：VME（Zvt）矩阵**配置**指令（设置 tile 状态）；**mmac / mred**：矩阵**乘 / 累加计算**指令——**未实现**
-- **VDOT / outer-product**：文档描述的硬件矩阵 MAC 引擎（256 MACs/cycle）——**代码中无实现**
-- **Zvt**：RISC-V 矩阵扩展；coralnpu 中仅 mset 配置 + PE 阵列硬件，缺计算指令
-- 佐证：coralnpu/hdl/chisel/src/coralnpu/rvv/RvvDecode.scala（L119-135，仅 mset）
+- **mset**：矩阵配置指令（设置 tile）；**mmac/mred**：矩阵计算指令——**未实现**
+- **VDOT / outer-product**：硬件矩阵 MAC 引擎（文档描述）——**无实现**
+- **Zvt**：RISC-V 矩阵扩展（仅 mset 配置 + PE 阵列，缺计算指令）
 
 > [24] 结论：文档描述的"硬件矩阵加速"未落地——实际能力 = 标准 RVV 软件算子
 
@@ -198,7 +209,7 @@ date: "2026年9月"
 
 [图:trim fs=18]
 
-- **上游 chip_nexus**：核 + Xbar + ISP + DDR + SPI + DMA + 外设（DDR/ISP 未完成）
+- **上游 chip_nexus**：核 + Xbar + ISP + DDR + SPI + DMA + 外设
 - **我们裁剪后**：CoreTlul + CoralNPUXbar + clint/plic/gpio/sram + uart_host
 - **删除**：ISP / DDR / spi2tlul / dma / spi_master(_flash)
 
@@ -259,7 +270,7 @@ date: "2026年9月"
 - **606 用例评测：正常用例 100% 通过**（2 个故障注入测试预期 FAIL）
 - 分类：向量算术 521 + load_store 56 + rvv 19 + ml_ops 8 + rvv_opt 2
 
-**不足（效率 7-25%）**
+**不足分析（效率 7-25%）**
 
 - ① vle/vse 装载开销大
 - ② 循环控制开销
@@ -328,4 +339,4 @@ date: "2026年9月"
 
 - SPI 加载提速（秒级）
 - DDR 通路（补全产品形态）
-- 全面评测（8 个 DDR 用例 + 全量 621 回归）
+- 全面评测（15 个超限用例：8 DDR + 7 无 DDR；+ 全量 621 回归）
