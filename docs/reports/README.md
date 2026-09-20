@@ -1,9 +1,11 @@
 # coralnpu 汇报材料
 
+> **完整工具链指南**（含踩坑、评审迭代模式、复用方法）：`.tao/knowledge/md2pptx-guide.md`
+
 | 文件 | 说明 |
 | --- | --- |
 | `coralnpu-fpga-report-202608.md` | M3 完整技术报告（`##` 章节格式，**非 PPT 源**） |
-| `coralnpu-fpga-report-202609.md` | **PPT 内容源**（`#` 分页格式，25 页） |
+| `coralnpu-fpga-report-202609.md` | **PPT 内容源**（`#` 分页格式，27 页） |
 
 ## 工作流（PPT）
 
