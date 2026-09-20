@@ -81,7 +81,7 @@ date: "2026年9月"
 |---|---|
 | ISA | rv32im（+ Zicsr/Zifencei/Zbb） |
 | 微架构 | 四阶段；in-order dispatch、out-of-order retire |
-| 推测 | 无推测；后向分支取/前向不取 |
+| 推测 | 无推测；backward branches taken / forward not-taken |
 | 发射 | 四路标量 |
 | 执行模型 | run-to-completion，无 OS 依赖 |
 | 寄存器 | 32 位 × 31 个 + CSR |
@@ -106,7 +106,7 @@ date: "2026年9月"
 
 **Zve32x 说明**
 
-- RISC-V **嵌入式向量扩展**（32 位元素）——coralnpu 实现的标准向量子集（VLEN=128）
+- **Zve32x**：RISC-V 嵌入式向量扩展（32 位元素）——coralnpu 实现的标准向量子集（VLEN=128）
 
 # 包含 ③：存储体系
 
@@ -124,12 +124,12 @@ date: "2026年9月"
 | 存储层 | 容量 / 地址 | 说明 |
 |---|---|---|
 | TCM | 8K/32K 默认；1M/1M highmem | 核内单周期 SRAM（scratchpad） |
-| EXTMEM | 0x20000000（4MB 窗口） | 外部内存区；我们 SoC 中是 SRAM |
+| EXTMEM | 0x20000000（4MB 窗口） | 外部存储区；我们 SoC 中是 SRAM |
 | DDR | 0x80000000（2GB 窗口） | 片外 DRAM（未实现） |
 
 - **tensor_arena**：TFLite Micro 推理的工作内存区（中间张量），官方示例 4MB
 - 官方 MobileNet 示例：itcm/dtcm=1024（1M/1M）；arena 4MB 超出 1M TCM → **必须 EXTMEM/DDR**
-- TCM 定位 = 高速 scratchpad（确定性延迟），**不是模型存储**
+- TCM 定位 = 高速 scratchpad（确定性延迟）
 
 > 佐证：coralnpu/tests/npusim_examples/BUILD（L36-37）、run_full_mobilenet_v1.cc（L53）；coralnpu/toolchain/coralnpu_tcm.ld.tpl
 
@@ -160,9 +160,10 @@ date: "2026年9月"
 
 **术语说明**
 
-- **mset**：矩阵配置指令（设置 tile）；**mmac/mred**：矩阵计算指令——**未实现**
-- **VDOT / outer-product**：硬件矩阵 MAC 引擎（文档描述）——**无实现**
-- **Zvt**：RISC-V 矩阵扩展（仅 mset 配置 + PE 阵列，缺计算指令）
+- **mset**：矩阵配置指令（设置 tile 状态）；**mmac / mred**：矩阵计算指令——**未实现**
+- **VME**：Vector Matrix Extension（向量矩阵扩展，即 Zvt）——coralnpu 中仅 mset 配置 + PE 阵列硬件
+- **VDOT**：向量点积指令（4×8bit 乘法 → 32bit 累加，自定义 SIMD 的核心）——**未实现**
+- **outer-product**：文档描述的硬件矩阵 MAC 引擎（256 MACs/cycle）——**未实现**
 
 > [24] 结论：文档描述的"硬件矩阵加速"未落地——实际能力 = 标准 RVV 软件算子
 
@@ -272,9 +273,11 @@ date: "2026年9月"
 
 **不足分析（效率 7-25%）**
 
+**改进可能**
+
 - ① vle/vse 装载开销大
 - ② 循环控制开销
-- ③ 单向量寄存器（m1）粒度导致流水利用率低
+- ③ 单向量寄存器粒度导致流水利用率低
 - ④ 无矩阵 MAC 硬件（文档描述的加速引擎未实现）
 
 **改进方向**：指令调度/展开、多发射、数据复用、矩阵扩展
@@ -290,7 +293,7 @@ date: "2026年9月"
 | DSP48E1 | 153 | — | — |
 | MMCM | 1 | 24 | 4.17% |
 
-- **TCM 容量**：当前 ITCM 8K + DTCM 32K（默认）；M4 **拟扩容**到 8K/1M（DTCM 1M）
+- **TCM 容量**：当前 ITCM 8K + DTCM 32K（默认）；M4 **拟扩容**到 highmem（ITCM 1M / DTCM 1M）
 - LUT 38.24% 主要来自 RVV 向量核；**BRAM 5.73% 余量充足**，是 TCM 扩容依据
 
 > 佐证：M3/E3-E6（T023 综合）；workspace/T023-e3-synth/utilization_route.rpt
@@ -315,28 +318,28 @@ date: "2026年9月"
 
 # 结论与挑战
 
-**结论**
+**结论：**
 
 - coralnpu 核功能正确：606 个 RVV 用例正常通过率 100%，上板闭环验证
 - 实际能力 = 标准 RVV + 标量核；文档中的硬件矩阵 MAC 未实现
 - 性能基线已建立（MACs/Cycle 7-25%）
 
-**TCM 扩容遇到的问题**（M4）
+**当前挑战：**
 
 - DTCM 扩到 1M 后，route 阶段出现严重布线拥塞（最高 27739 个信号无法布线）
 - 同时时序违例（WNS -20.7ns）——LSU deqPtr 高扇出（fo=63951，路径 67ns）+ DTCM BRAM 阵列挤压 LSU 布局
 - 拥塞与时序交织：改布局修拥塞→时序变差；降频修时序→布局变差
 - 已尝试 12 轮（累计 ~90 机器小时）
 
-# 优化方向与下一步
-
-**性能优化方向**
-
-- 指令调度/展开（optimized 版已达 25.3%）、多发射、数据复用
-- **自行增加矩阵运算**（实现 mmac 矩阵指令，释放 PE 阵列硬件能力）
+# 下一步与优化方向
 
 **下一步**
 
 - SPI 加载提速（秒级）
 - DDR 通路（补全产品形态）
 - 全面评测（15 个超限用例：8 DDR + 7 无 DDR；+ 全量 621 回归）
+
+**优化方向**
+
+- 指令调度/展开（optimized 版已达 25.3%）、多发射、数据复用
+- **自行增加矩阵运算**（实现 mmac 矩阵指令，释放 PE 阵列硬件能力）

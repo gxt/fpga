@@ -219,6 +219,12 @@ def quote(s, text, top, size=14):
     add_runs(p, text, size, GRAY)
     return tb
 
+def para(s, text, top, size=20):
+    tb = s.shapes.add_textbox(Inches(0.6), Inches(top), Inches(12.1), Inches(0.45))
+    p = tb.text_frame.paragraphs[0]
+    add_runs(p, text, size, DARK, bold_default=True)
+    return tb
+
 def table(s, headers, rows, left=0.6, top=1.25, width=12.1, height=5.0, fs=14, colw=None):
     shp = s.shapes.add_table(len(rows) + 1, len(headers), Inches(left), Inches(top),
                              Inches(width), Inches(height))
@@ -346,6 +352,10 @@ def parse_md(text):
             q_attr = {}
             i += 1
             continue
+        if ln.strip():
+            cur['blocks'].append(('para', ln.strip()))
+            i += 1
+            continue
         i += 1
     if cur:
         pages.append(cur)
@@ -376,7 +386,7 @@ r = p.add_run(); r.text = {py_str(title)}
 r.font.size = Pt(40); r.font.bold = True; r.font.color.rgb = WHITE; r.font.name = FONT
 tb2 = s.shapes.add_textbox(Inches(0.8), Inches(4.1), Inches(11.7), Inches(2.0))
 tf2 = tb2.text_frame
-for i, t in enumerate([{py_str(core)}, {py_str(platform)}, '', {py_str(date)}]):
+for i, t in enumerate([{py_str(core)}, {py_str(platform)}, '', '', {py_str(date)}]):
     p = tf2.paragraphs[0] if i == 0 else tf2.add_paragraph()
     p.alignment = PP_ALIGN.CENTER; p.space_after = Pt(6)
     r = p.add_run(); r.text = t; r.font.size = Pt(18); r.font.color.rgb = RGBColor(0xC8,0xD8,0xE8); r.font.name = FONT
@@ -402,15 +412,18 @@ for i, t in enumerate([{py_str(core)}, {py_str(platform)}, '', {py_str(date)}]):
                 for t, lvl in items:
                     code.append(f'    ({py_str(t)}, {lvl}),')
                 code.append(f'], top={y:.2f}, size={size}' + (f', spacing={spacing}' if spacing else '') + ')')
-                y += 0.6 * n + 0.30
+                y += (size * 0.021 * (float(spacing) if spacing else 1.0)) * n + 0.30
             elif kind == 'table':
                 rows_n = len(blk[2])
                 attrs = blk[3] if len(blk) > 3 else {}
                 fs = int(attrs.get('size', 14))
                 colw = [float(x) for x in attrs['colw'].split(',')] if 'colw' in attrs else None
-                h = min(0.5 * (rows_n + 1) + 0.2, 5.4)
+                h = min(0.42 * (rows_n + 1) + 0.2, 5.4)
                 code.append(f'table(s, {py_str(blk[1])}, {py_str(blk[2])}, top={y:.2f}, height={h:.2f}, fs={fs}, colw={colw})')
                 y += h + 0.15
+            elif kind == 'para':
+                code.append(f'para(s, {py_str(blk[1])}, {y:.2f})')
+                y += 0.45
             elif kind == 'quote':
                 txt = blk[1]
                 qa = blk[2] if len(blk) > 2 else {}
