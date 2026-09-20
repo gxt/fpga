@@ -7,6 +7,7 @@ SoC 切 highmem 布局（DTCM 1M @0x100000），评测 7 个无 DDR 超限用例
 - 15 超限用例链接到 **highmem 布局**（ITCM@0x0 + DTCM@0x100000 + CSR@0x200000）
 - **SoC 自动布局**（SoCChiselConfig.scala L132-135）：`dtcm ≠ 32K` → 自动 MemoryRegions.highmem
 - **配置决定（2026-08-26）：保持 1M/1M**（itcm=1024, dtcm=1024）——与 highmem 缺省常量一致（Parameters.scala L61-62），配置简单、与用例链接布局完全匹配；ITCM 1M 虽浪费（代码只用 1-6K）但资源够用（BRAM ~530 RAMB36/41% + SRAM 74 ≈ 46%，DualV7 共 1292 余量充足）
+- **配置变更（2026-09-20，取代上条）：改为 8K/1M**（itcm=8, dtcm=1024）——1M/1M 拥塞 23087 布不通；8K/1M 满足用例需求（代码 1-6K，ITCM 8K 用 LUTRAM 释放 BRAM 治拥塞），DTCM 1M 匹配用例数据需求。fork 链：a5b6e122(1M/1M) → f3937fe3(64K/1M) → 5b93fc54(8K/1M)
 
 ## 7 个目标用例（无 DDR）
 
@@ -44,10 +45,17 @@ SoC 切 highmem 布局（DTCM 1M @0x100000），评测 7 个无 DDR 超限用例
 - 8 个含 DDR 用例**本任务不做**（T026）
 
 ## 完成区
-**状态**：待开始
-**Commit**：
-**综合资源**（utilization rpt）：
-**测试结果**：
-**验收结果**：
+**状态**：进行中（方案A' 验证中）
+**Commit**：fb41dc3（方案A' MAX_FANOUT 512）
+**综合资源**（utilization rpt）：待补
+**测试结果**：待补
+**验收结果**：待补
 **新发现/坑**：
+- **build_top.tcl:45 硬编码 SV 名**（`CoralNPUChiselSubsystem_ITCM8KB_DTCM1024KB.sv`）——换 TCM 配置须改此行，否则跑错配置（本轮排查确认所有 T025 轮次均为 8K/1M）
+- **LSU deqPtr 高扇出（fo=63951）是时序根因**：MAX_FANOUT 256 使 setup 从 -20.704 → +5.922（改善 26.6ns），但寄存器复制导致 route 拥塞 0 → 507 unrouted + hold -2.793（时序与拥塞交织）
+- 上游 `vivado_pre_opt_hooks.tcl` = pin 检查 + ISP pblock + DDR4 pblock + MUXF_REMAP + MAX_FANOUT；我们已裁剪 ISP/DDR，pblock 不适用
+- 各轮实测（均 8K/1M，20MHz）：无约束 0 拥塞/WNS -20.704；MAX_FANOUT 256 → 507 unrouted/setup +5.922
+- 1M/1M 拥塞 23087；64K/1M 拥塞 1712（均布不通）
 **遗留问题**：
+- 方案A'（MAX_FANOUT 512）验证中（~7h）
+- 若 512 仍拥塞 → 退 1024；若时序不足 → 降频（14MHz）
