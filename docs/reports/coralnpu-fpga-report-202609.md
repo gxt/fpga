@@ -298,6 +298,26 @@ date: "2026年9月"
 
 > 佐证：M3/E3-E6（T023 综合）；workspace/T023-e3-synth/utilization_route.rpt
 
+# FPGA 器件对比（上游 vs 我们的板卡）
+
+<!-- tbl size=16 colw=3.5,4.3,4.3 -->
+| 指标 | 上游 chip_nexus | 我们（DualV7） |
+|---|---|---|
+| 器件型号 | xcvu13p-fhga2104-2-e | xc7v2000tflg1925-1 |
+| 系列 / 工艺 | UltraScale+（VU13P）/ 16nm | Virtex-7（V2000T）/ 28nm |
+| 速度等级 | -2 | -1 |
+| CLB LUTs | 1,728,000 | 1,221,600 |
+| CLB FFs | 3,456,000 | 2,443,200 |
+| Block RAM（36Kb） | 2,688 | 1,292 |
+| UltraRAM（288Kb） | 1,280 | — |
+| DSP Slices | 12,288 | 2,160 |
+| 用途 | 官方综合基线（未上板） | **已上板验证** |
+
+- 上游器件更先进（16nm，容量约 1.4×）——但仅作综合基线（未上板，综合需 ~23G 内存）
+- 我们的 Virtex-7 已上板验证（RVV SoC：LUT 38.24%、BRAM 5.73%）
+
+> **UltraRAM（URAM）**：UltraScale+ 引入的大容量片上存储（**288Kb/块**，密度约 8× 于 Block RAM），适合大 buffer/权重存储；**Block RAM（BRAM）**为 36Kb/块，配置更灵活、延迟更低——**7 系列无 URAM**（故上游有、我们的板卡没有）
+
 # 当前挑战：TCM 扩容的尝试
 
 <!-- tbl size=14 colw=0.67,2.52,2.86,0.67,2.52,2.86 -->
