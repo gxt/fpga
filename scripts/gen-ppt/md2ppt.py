@@ -438,8 +438,10 @@ for i, t in enumerate([{py_str(core)}, {py_str(platform)}, '', '', {py_str(date)
                     code.append(f'quote(s, {py_str("**" + qtext + "**")}, {qtop:.2f}, size={qsize})')
                     y = qtop + 0.6
                 else:
-                    # 佐证/说明：统一固定到页面底部（靠下）
-                    code.append(f'quote(s, {py_str(txt)}, 6.45, size=14)')
+                    # 佐证/说明：默认固定到页面底部；支持 top/size 属性
+                    qtop2 = float(qa.get('top', 6.45))
+                    qsz = int(qa.get('size', 14))
+                    code.append(f'quote(s, {py_str(txt)}, {qtop2:.2f}, size={qsz})')
         code.append(f'footer(s, FOOT)')
     code.append(FOOTER.replace('__OUT__', out_pptx_name))
     with open(out_py, 'w') as f:

@@ -314,7 +314,8 @@ date: "2026年9月"
 | DSP Slices | 12,288 | 2,160 |
 | 用途 | 官方综合基线（未上板） | **已上板验证** |
 
-> **UltraRAM（URAM）**：UltraScale+ 引入的大容量片上存储（**288Kb/块**，密度约 8× 于 Block RAM），适合大 buffer/权重存储；**Block RAM（BRAM）**为 36Kb/块，配置更灵活、延迟更低——**7 系列无 URAM**（故上游有、我们的板卡没有）
+<!-- quote size=18 top=6.15 -->
+> **UltraRAM**：UltraScale+ 的大容量片上存储（288Kb/块，密度约 8× 于 BRAM）——**7 系列无 URAM**
 
 # 当前挑战：TCM 扩容的尝试
 
