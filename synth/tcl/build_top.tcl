@@ -79,10 +79,10 @@ if {$mode eq "proj"} {
 # `define 不跨文件，须 synth_design 注入（T017 经验）。
 if {$top eq "top_coralnpu_soc"} {
     synth_design -top $top -part $part -verilog_define {VLEN_128 ZVE32F_ON TB_SUPPORT}
-    # T025 方案A'：借鉴上游 vivado_pre_opt_hooks.tcl——LSU 扇出专门处理
-    #   deqPtr_reg MAX_FANOUT 512（方案A 用 256 时 setup 收敛 +5.922 但拥塞 507 unrouted）
-    #   → 复制寄存器减半，减轻布线压力，观察时序/拥塞平衡
-    catch { set_property MAX_FANOUT 512 [get_cells -hierarchical -filter {NAME =~ *score/lsu/rs/deqPtr_reg*}] }
+    # T025 方案A''：MAX_FANOUT 改为后处理 SV 插入（见 workspace/T025-e3-synth/fix_fanout.py）
+    #   原因：MAX_FANOUT 是"综合属性"，synth 后 set_property 无效（实测方案A/A' 无复制）；
+    #         RTL 阶段 get_cells 也拿不到 reg（实测 0 匹配）→ 只能写在 RTL 源码
+    #   此处仅保留 MUXF_REMAP（opt_design 属性，实测有效：4482 MUXFX→LUT3）
     catch { set_property MUXF_REMAP 1   [get_cells -hierarchical -filter {NAME =~ *score/lsu/slot*}] }
 } else {
     synth_design -top $top -part $part
